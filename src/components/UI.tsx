@@ -131,8 +131,8 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
             </label>
             <input 
               type="range" 
-              min="0.01" 
-              max="2" 
+              min="0.05" 
+              max="0.6" 
               step="0.01" 
               className={styles.rangeInput}
               value={state.groundSpeed}
@@ -185,7 +185,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
               onUpdateParam('startLon', 0);
               onUpdateParam('endLat', 0);
               onUpdateParam('endLon', 0);
-              onUpdateParam('groundSpeed', 0.5);
+              onUpdateParam('groundSpeed', 0.27); // ~900 km/h
               onReset();
             }}>North Pole to Equator</button>
             <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
@@ -193,7 +193,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
               onUpdateParam('startLon', 0);
               onUpdateParam('endLat', -45);
               onUpdateParam('endLon', 0);
-              onUpdateParam('groundSpeed', 0.6);
+              onUpdateParam('groundSpeed', 0.3); // ~1000 km/h
               onReset();
             }}>Cross-Equator (45°N to 45°S)</button>
             <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
@@ -201,7 +201,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
               onUpdateParam('startLon', 0);
               onUpdateParam('endLat', 0);
               onUpdateParam('endLon', -90);
-              onUpdateParam('groundSpeed', 0.5); // Matches EARTH_ROTATION_SPEED
+              onUpdateParam('groundSpeed', 0.5); // Fixed space hover
               onReset();
             }}>Inertial Hover (Equator West)</button>
             <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
@@ -209,7 +209,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
               onUpdateParam('startLon', 0);
               onUpdateParam('endLat', -89);
               onUpdateParam('endLon', 0);
-              onUpdateParam('groundSpeed', 0.8);
+              onUpdateParam('groundSpeed', 0.3); // ~1000 km/h
               onReset();
             }}>The Long Haul (Pole to Pole)</button>
             <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
@@ -217,7 +217,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
               onUpdateParam('startLon', 0);
               onUpdateParam('endLat', 45);
               onUpdateParam('endLon', 40);
-              onUpdateParam('groundSpeed', 0.7);
+              onUpdateParam('groundSpeed', 0.27); // ~900 km/h
               onReset();
             }}>West to East (45°N)</button>
           </div>

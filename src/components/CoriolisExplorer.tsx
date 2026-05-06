@@ -35,12 +35,12 @@ const CoriolisExplorer: React.FC = () => {
     startLon: 0,
     endLat: 0, // Heading towards Equator
     endLon: 0,
-    groundSpeed: 0.5, // Faster default speed
+    groundSpeed: 0.27, // ~900 km/h
     recenterToggle: false,
     planeOpacity: 0.1,
     earthOpacity: 0.9,
     showGrid: true,
-    useRealUnits: false,
+    useRealUnits: true, // Default to km/h for better realism
   });
 
   useEffect(() => {
