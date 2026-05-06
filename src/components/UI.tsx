@@ -82,11 +82,16 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onChangeView, onU
         </div>
 
         <div className={styles.info}>
-           <label className={styles.controlLabel} style={{ color: '#ff4444', marginBottom: '4px', display: 'block' }}>
-             Aircraft A Required Launch Speed: {requiredInitialGroundSpeed.toFixed(2)}
-           </label>
-           <p style={{ fontSize: '0.7rem', margin: 0, opacity: 0.6 }}>
-             (Auto-calculated to hit the target at the same time as B)
+           <div className={styles.velocityIndicator}>
+             <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
+             <label className={styles.controlLabel}>V_Ground (B): {state.groundSpeed.toFixed(3)}</label>
+           </div>
+           <div className={styles.velocityIndicator}>
+             <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
+             <label className={styles.controlLabel}>V_Ground (A): {requiredInitialGroundSpeed.toFixed(3)}</label>
+           </div>
+           <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
+             (V_Ground A is the required launch speed to hit the target at the same time as B)
            </p>
         </div>
 

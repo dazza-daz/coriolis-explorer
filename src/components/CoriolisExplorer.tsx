@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Scene from './Scene';
 import UI from './UI';
 import styles from './CoriolisExplorer.module.css';
+import { latLonToVector3, calculateInertialTrajectory } from '../utils/math';
 
 export type ViewMode = 'INERTIAL' | 'EARTH_FIXED';
 
@@ -34,18 +35,27 @@ const CoriolisExplorer: React.FC = () => {
 
   useEffect(() => {
     let frameId: number;
+    
+    // Calculate current timeOfFlight to know when to stop
+    const startPos = latLonToVector3(state.startLat, state.startLon);
+    const endPos = latLonToVector3(state.endLat, state.endLon);
+    const { timeOfFlight } = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
+
     const animate = () => {
       if (state.isPlaying) {
-        setState((prev) => ({
-          ...prev,
-          time: prev.time + (0.01 * prev.timeMultiplier),
-        }));
+        setState((prev) => {
+          const nextTime = prev.time + (0.01 * prev.timeMultiplier);
+          if (nextTime >= timeOfFlight) {
+            return { ...prev, time: timeOfFlight, isPlaying: false };
+          }
+          return { ...prev, time: nextTime };
+        });
       }
       frameId = requestAnimationFrame(animate);
     };
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [state.isPlaying, state.timeMultiplier]);
+  }, [state.isPlaying, state.timeMultiplier, state.startLat, state.startLon, state.endLat, state.endLon, state.groundSpeed]);
 
   const handleTogglePlay = () => setState(s => ({ ...s, isPlaying: !s.isPlaying }));
   const handleReset = () => setState(s => ({ ...s, time: 0, isPlaying: false }));
