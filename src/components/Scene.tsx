@@ -200,8 +200,18 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
         </mesh>
         <VelocityArrow position={currentPosB_Ground} velocity={velB_Ground} color="cyan" label="V_G (B)" />
 
-        {/* Aircraft A Ground Track & Marker */}
-        <Line points={pointsA_Ground} color="red" lineWidth={3} opacity={0.8} transparent />
+        {/* Aircraft A Ground Track & Marker - Dashed to differentiate from B */}
+        <Line 
+          points={pointsA_Ground} 
+          color="red" 
+          lineWidth={2} 
+          opacity={0.6} 
+          transparent 
+          dashed
+          dashScale={20}
+          dashSize={0.5}
+          gapSize={0.5}
+        />
         <mesh position={currentPosA_Ground}>
            <sphereGeometry args={[0.08, 16, 16]} />
            <meshStandardMaterial color="red" transparent opacity={0.8} />
