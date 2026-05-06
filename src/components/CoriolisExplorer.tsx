@@ -22,6 +22,7 @@ export interface SimulationState {
   planeOpacity: number;
   earthOpacity: number;
   showGrid: boolean;
+  useRealUnits: boolean;
 }
 
 const CoriolisExplorer: React.FC = () => {
@@ -39,6 +40,7 @@ const CoriolisExplorer: React.FC = () => {
     planeOpacity: 0.1,
     earthOpacity: 0.9,
     showGrid: true,
+    useRealUnits: false,
   });
 
   useEffect(() => {

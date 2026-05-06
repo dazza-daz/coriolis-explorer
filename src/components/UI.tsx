@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { SimulationState, ViewMode } from './CoriolisExplorer';
-import { latLonToVector3, calculateInertialTrajectory, getCurrentGroundSpeedA } from '../utils/math';
+import { EARTH_RADIUS, latLonToVector3, calculateInertialTrajectory, getCurrentGroundSpeedA, SPEED_TO_KMH } from '../utils/math';
 import styles from './UI.module.css';
 
 interface UIProps {
@@ -39,6 +39,14 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
 
   const currentSpeedA = getCurrentGroundSpeedA(startPos, state.time, orbitalAxis, angularSpeed, timeOfFlight);
 
+  const formatSpeed = (s: number) => {
+    // Input 's' is linear speed (magnitude)
+    if (state.useRealUnits) {
+      return `${(s * SPEED_TO_KMH).toLocaleString(undefined, { maximumFractionDigits: 0 })} km/h`;
+    }
+    return s.toFixed(3);
+  };
+
   return (
     <>
       <div className={`${styles.persistentBar} ${isMenuOpen ? styles.shifted : ''}`}>
@@ -73,6 +81,15 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
         </header>
 
         <Section title="Simulation Controls">
+          <div className={styles.controlGroup}>
+             <button 
+                className={`${styles.btn} ${state.useRealUnits ? styles.active : ''}`}
+                onClick={() => onUpdateParam('useRealUnits', !state.useRealUnits)}
+              >
+                {state.useRealUnits ? 'Show Scaled Units' : 'Show km/h'}
+              </button>
+          </div>
+
           <div className={styles.controlGroup}>
             <button onClick={onRecenterView} className={styles.btn}>Recenter Camera</button>
           </div>
@@ -110,7 +127,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
 
           <div className={styles.controlGroup}>
             <label className={styles.controlLabel}>
-              Aircraft B Speed: {state.groundSpeed.toFixed(2)}
+              Aircraft B Speed: {formatSpeed(state.groundSpeed * EARTH_RADIUS)}
             </label>
             <input 
               type="range" 
@@ -210,11 +227,11 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
           <div className={styles.info}>
              <div className={styles.velocityIndicator}>
                <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
-               <label className={styles.controlLabel}>V_Ground (B): {state.groundSpeed.toFixed(3)}</label>
+               <label className={styles.controlLabel}>V_Ground (B): {formatSpeed(state.groundSpeed * EARTH_RADIUS)}</label>
              </div>
              <div className={styles.velocityIndicator}>
                <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
-               <label className={styles.controlLabel}>V_Ground (A): {requiredInitialGroundSpeed.toFixed(3)}</label>
+               <label className={styles.controlLabel}>V_Ground (A): {formatSpeed(requiredInitialGroundSpeed * EARTH_RADIUS)}</label>
              </div>
              <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
                (Launch speed for A is auto-calculated to hit the target at the same time as B)
@@ -237,14 +254,14 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
             <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
             <div className={styles.legendText}>
               <span>Aircraft A (Orbital)</span>
-              <span className={styles.speedBadge}>V_G: {currentSpeedA.toFixed(3)}</span>
+              <span className={styles.speedBadge}>V_G: {formatSpeed(currentSpeedA * EARTH_RADIUS)}</span>
             </div>
           </div>
           <div className={styles.legendItem}>
             <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
             <div className={styles.legendText}>
               <span>Aircraft B (Ground-Following)</span>
-              <span className={styles.speedBadge}>V_G: {state.groundSpeed.toFixed(3)}</span>
+              <span className={styles.speedBadge}>V_G: {formatSpeed(state.groundSpeed * EARTH_RADIUS)}</span>
             </div>
           </div>
         </footer>

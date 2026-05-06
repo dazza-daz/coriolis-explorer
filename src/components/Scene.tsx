@@ -5,7 +5,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, Line, PerspectiveCamera, useTexture, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { SimulationState } from './CoriolisExplorer';
-import { EARTH_RADIUS, EARTH_ROTATION_SPEED, latLonToVector3, getGroundPathPosition, calculateInertialTrajectory, getInertialPathPositionFromTrajectory } from '../utils/math';
+import { EARTH_RADIUS, EARTH_ROTATION_SPEED, latLonToVector3, getGroundPathPosition, calculateInertialTrajectory, getInertialPathPositionFromTrajectory, SPEED_TO_KMH } from '../utils/math';
 
 interface SceneProps {
   state: SimulationState;
@@ -69,11 +69,15 @@ const Earth = ({ opacity, showGrid }: { opacity: number; showGrid: boolean }) =>
   );
 };
 
-const VelocityArrow = ({ position, velocity, color, label }: { position: THREE.Vector3; velocity: THREE.Vector3; color: string; label: string }) => {
+const VelocityArrow = ({ position, velocity, color, label, useRealUnits }: { position: THREE.Vector3; velocity: THREE.Vector3; color: string; label: string; useRealUnits: boolean }) => {
   const length = velocity.length() * 2; // Scale for visibility
   if (length < 0.1) return null;
   const dir = velocity.clone().normalize();
   
+  const speedVal = useRealUnits 
+    ? `${(velocity.length() * SPEED_TO_KMH).toLocaleString(undefined, { maximumFractionDigits: 0 })} km/h`
+    : (velocity.length()).toFixed(3);
+
   return (
     <group position={position}>
       <arrowHelper args={[dir, new THREE.Vector3(0,0,0), length, color, 0.2, 0.1]} />
@@ -90,7 +94,7 @@ const VelocityArrow = ({ position, velocity, color, label }: { position: THREE.V
           pointerEvents: 'none',
           boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
         }}>
-          {label}: {velocity.length().toFixed(3)}
+          {label}: {speedVal}
         </div>
       </Html>
     </group>
@@ -98,7 +102,7 @@ const VelocityArrow = ({ position, velocity, color, label }: { position: THREE.V
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
@@ -165,7 +169,8 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   const velA_Inertial = new THREE.Vector3().crossVectors(orbitalAxis, currentPosA_Inertial).normalize().multiplyScalar(angularSpeed * EARTH_RADIUS);
   
   // v_ground = v_inertial - omega_e x r
-  const omegaE = new THREE.Vector3(0, -EARTH_ROTATION_SPEED, 0); 
+  // Use correct omega for subtraction
+  const omegaE = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0); 
   const velA_Rot = new THREE.Vector3().crossVectors(omegaE, currentPosA_Inertial);
   const velA_Ground_InertialFrame = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   
@@ -198,9 +203,9 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
           <sphereGeometry args={[0.12, 16, 16]} />
           <meshStandardMaterial color="cyan" emissive="cyan" emissiveIntensity={2} />
         </mesh>
-        <VelocityArrow position={currentPosB_Ground} velocity={velB_Ground} color="cyan" label="V_G (B)" />
+        <VelocityArrow position={currentPosB_Ground} velocity={velB_Ground} color="cyan" label="V_G (B)" useRealUnits={useRealUnits} />
 
-        {/* Aircraft A Ground Track & Marker - Dashed to differentiate from B */}
+        {/* Aircraft A Ground Track & Marker */}
         <Line 
           points={pointsA_Ground} 
           color="red" 
@@ -216,7 +221,7 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
            <sphereGeometry args={[0.08, 16, 16]} />
            <meshStandardMaterial color="red" transparent opacity={0.8} />
         </mesh>
-        <VelocityArrow position={currentPosA_Ground} velocity={velA_Ground_EarthFrame} color="red" label="V_G (A)" />
+        <VelocityArrow position={currentPosA_Ground} velocity={velA_Ground_EarthFrame} color="red" label="V_G (A)" useRealUnits={useRealUnits} />
       </group>
 
       {/* Inertial Frame Group (Rotates in Earth-Fixed View) */}
@@ -255,7 +260,6 @@ const CameraController = ({ state }: { state: SimulationState }) => {
   useEffect(() => {
     if (prevViewMode !== state.viewMode) {
       const angle = state.time * EARTH_ROTATION_SPEED;
-      // Calculate rotation to keep Africa at the same relative PoV on screen
       const rotationAngle = state.viewMode === 'EARTH_FIXED' ? -angle : angle;
       
       camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationAngle);

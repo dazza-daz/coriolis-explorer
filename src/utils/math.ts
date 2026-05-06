@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 export const EARTH_RADIUS = 5;
 export const EARTH_ROTATION_SPEED = 0.5; // Radians per "simulation unit time"
+export const SPEED_TO_KMH = 668.0; // Factor to make 2.5 unit speed ~ 1670 km/h (Equatorial Speed)
 
 /**
  * Converts Lat/Lon to a 3D Vector3 on a sphere of radius R.
@@ -79,9 +80,15 @@ export function calculateInertialTrajectory(
   // Calculate required initial ground velocity to display to user
   const v_dir = new THREE.Vector3().crossVectors(orbitalAxis, startPos).normalize();
   const v_inertial = v_dir.multiplyScalar(angularSpeed * EARTH_RADIUS);
+  
+  // v_rot = omega x startPos. 
+  // In our scene, Earth rotates around Y by +angle, so omega = [0, EARTH_ROTATION_SPEED, 0]
   const omega = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0);
   const v_rot = new THREE.Vector3().crossVectors(omega, startPos);
+  
+  // v_gs = v_inertial - v_rot
   const v_gs_initial = new THREE.Vector3().subVectors(v_inertial, v_rot);
+  // Return as angular speed to match Aircraft B's state unit
   const requiredInitialGroundSpeed = v_gs_initial.length() / EARTH_RADIUS;
 
   return {
