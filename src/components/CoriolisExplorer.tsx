@@ -23,6 +23,7 @@ export interface SimulationState {
   earthOpacity: number;
   showGrid: boolean;
   useRealUnits: boolean;
+  atmosphereOn: boolean;
 }
 
 const CoriolisExplorer: React.FC = () => {
