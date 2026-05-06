@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { SimulationState, ViewMode } from './CoriolisExplorer';
 import { latLonToVector3, calculateInertialTrajectory, getCurrentGroundSpeedA } from '../utils/math';
 import styles from './UI.module.css';
@@ -14,6 +14,21 @@ interface UIProps {
   onUpdateParam: (key: keyof SimulationState, value: number | string | boolean) => void;
 }
 
+const Section = ({ title, children, defaultOpen = true }: { title: string, children: React.ReactNode, defaultOpen?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionHeader} onClick={() => setIsOpen(!isOpen)}>
+        <h2>{title}</h2>
+        <span className={`${styles.chevron} ${isOpen ? styles.open : ''}`}>▼</span>
+      </div>
+      <div className={`${styles.sectionContent} ${isOpen ? '' : styles.hidden}`}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, onChangeView, onUpdateParam }) => {
   const startPos = latLonToVector3(state.startLat, state.startLon);
   const endPos = latLonToVector3(state.endLat, state.endLon);
@@ -26,10 +41,9 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
     <div className={styles.overlay}>
       <header className={styles.header}>
         <h1>Coriolis Explorer</h1>
-        <p>Comparing Orbital vs. Ground-Following Paths</p>
       </header>
 
-      <section className={styles.controls}>
+      <Section title="Simulation Controls">
         <div className={styles.buttonGroup}>
           <button 
             onClick={onTogglePlay} 
@@ -60,7 +74,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
         </div>
 
         <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>Simulation Speed: {state.timeMultiplier}x</label>
+          <label className={styles.controlLabel}>Time Speed: {state.timeMultiplier}x</label>
           <input 
             type="range" 
             min="0.1" 
@@ -86,21 +100,9 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
             onChange={(e) => onUpdateParam('groundSpeed', parseFloat(e.target.value))}
           />
         </div>
+      </Section>
 
-        <div className={styles.info}>
-           <div className={styles.velocityIndicator}>
-             <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
-             <label className={styles.controlLabel}>V_Ground (B): {state.groundSpeed.toFixed(3)}</label>
-           </div>
-           <div className={styles.velocityIndicator}>
-             <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
-             <label className={styles.controlLabel}>V_Ground (A): {requiredInitialGroundSpeed.toFixed(3)}</label>
-           </div>
-           <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
-             (V_Ground A is the required launch speed to hit the target at the same time as B)
-           </p>
-        </div>
-
+      <Section title="Environment" defaultOpen={false}>
         <div className={styles.controlGroup}>
           <label className={styles.controlLabel}>Plane Opacity: {state.planeOpacity.toFixed(2)}</label>
           <input 
@@ -135,43 +137,62 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
             {state.showGrid ? 'Hide Lat/Lon Grid' : 'Show Lat/Lon Grid'}
           </button>
         </div>
+      </Section>
 
-        <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>Scenario Presets</label>
-          <div className={styles.presets}>
-            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-              onUpdateParam('startLat', 90);
-              onUpdateParam('startLon', 0);
-              onUpdateParam('endLat', 0);
-              onUpdateParam('endLon', 0);
-              onUpdateParam('groundSpeed', 0.5);
-              onReset();
-            }}>North Pole to Equator</button>
-            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-              onUpdateParam('startLat', 0);
-              onUpdateParam('startLon', 0);
-              onUpdateParam('endLat', 80);
-              onUpdateParam('endLon', 0);
-              onUpdateParam('groundSpeed', 0.6);
-              onReset();
-            }}>Equator to North Pole</button>
-            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-              onUpdateParam('startLat', 45);
-              onUpdateParam('startLon', 0);
-              onUpdateParam('endLat', 45);
-              onUpdateParam('endLon', 40);
-              onUpdateParam('groundSpeed', 0.7);
-              onReset();
-            }}>West to East (45°N)</button>
-          </div>
+      <Section title="Presets" defaultOpen={false}>
+        <div className={styles.presets}>
+          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+            onUpdateParam('startLat', 90);
+            onUpdateParam('startLon', 0);
+            onUpdateParam('endLat', 0);
+            onUpdateParam('endLon', 0);
+            onUpdateParam('groundSpeed', 0.5);
+            onReset();
+          }}>North Pole to Equator</button>
+          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+            onUpdateParam('startLat', 0);
+            onUpdateParam('startLon', 0);
+            onUpdateParam('endLat', 80);
+            onUpdateParam('endLon', 0);
+            onUpdateParam('groundSpeed', 0.6);
+            onReset();
+          }}>Equator to North Pole</button>
+          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+            onUpdateParam('startLat', 45);
+            onUpdateParam('startLon', 0);
+            onUpdateParam('endLat', 45);
+            onUpdateParam('endLon', 40);
+            onUpdateParam('groundSpeed', 0.7);
+            onReset();
+          }}>West to East (45°N)</button>
         </div>
-      </section>
+      </Section>
 
-      <section className={styles.info}>
-        <h3>Quick Facts</h3>
-        <p>In the <strong>Inertial Frame</strong>, Aircraft A follows a straight-looking orbital path while the Earth rotates underneath.</p>
-        <p>In the <strong>Earth-Fixed Frame</strong>, Aircraft A appears to deflect (Coriolis effect) while Aircraft B follows the Great Circle.</p>
-      </section>
+      <Section title="Information" defaultOpen={false}>
+        <div className={styles.info}>
+           <div className={styles.velocityIndicator}>
+             <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
+             <label className={styles.controlLabel}>V_Ground (B): {state.groundSpeed.toFixed(3)}</label>
+           </div>
+           <div className={styles.velocityIndicator}>
+             <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
+             <label className={styles.controlLabel}>V_Ground (A): {requiredInitialGroundSpeed.toFixed(3)}</label>
+           </div>
+           <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
+             (Launch speed for A is auto-calculated to hit the target at the same time as B)
+           </p>
+        </div>
+
+        <div className={styles.info} style={{ marginTop: '12px' }}>
+          <h3>Quick Facts</h3>
+          <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+            <strong>Inertial Frame:</strong> Aircraft A follows a planar orbital path while Earth rotates.
+          </p>
+          <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '4px' }}>
+            <strong>Earth-Fixed Frame:</strong> Aircraft A deflects (Coriolis) while B follows the Great Circle.
+          </p>
+        </div>
+      </Section>
 
       <footer className={styles.legend}>
         <div className={styles.legendItem}>

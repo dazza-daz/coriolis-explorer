@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useMemo, useRef, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useMemo, useRef, useEffect, useState } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, Line, PerspectiveCamera, useTexture, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { SimulationState } from './CoriolisExplorer';
@@ -236,20 +236,42 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   );
 };
 
-const Scene: React.FC<SceneProps> = ({ state }) => {
+const CameraController = ({ state }: { state: SimulationState }) => {
+  const { camera } = useThree();
   const controlsRef = useRef<any>(null);
+  const [prevViewMode, setPrevViewMode] = useState(state.viewMode);
 
+  // Handle seamless transition between frames
+  useEffect(() => {
+    if (prevViewMode !== state.viewMode) {
+      const angle = state.time * EARTH_ROTATION_SPEED;
+      // Calculate rotation to keep Africa at the same relative PoV on screen
+      const rotationAngle = state.viewMode === 'EARTH_FIXED' ? -angle : angle;
+      
+      camera.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationAngle);
+      if (controlsRef.current) {
+        controlsRef.current.update();
+      }
+      setPrevViewMode(state.viewMode);
+    }
+  }, [state.viewMode, state.time, camera, prevViewMode]);
+
+  // Handle explicit recentering
   useEffect(() => {
     if (controlsRef.current) {
       controlsRef.current.reset();
     }
   }, [state.recenterToggle]);
 
+  return <OrbitControls ref={controlsRef} enableDamping />;
+};
+
+const Scene: React.FC<SceneProps> = ({ state }) => {
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <Canvas shadows>
         <PerspectiveCamera makeDefault position={[12, 8, 12]} />
-        <OrbitControls ref={controlsRef} enableDamping />
+        <CameraController state={state} />
         <ambientLight intensity={0.6} />
         <pointLight position={[20, 20, 20]} intensity={2} />
 
