@@ -135,3 +135,35 @@ export function getCurrentGroundSpeedA(
   const velA_Ground = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   return velA_Ground.length() / EARTH_RADIUS; // Normalized units
 }
+
+/**
+ * Calculates the required steering force (acceleration) for an aircraft to maintain
+ * a Great Circle path on a rotating Earth.
+ */
+export function getRequiredSteeringForce(
+  pos: THREE.Vector3,
+  v_ground: THREE.Vector3
+): THREE.Vector3 {
+  // omega = [0, EARTH_ROTATION_SPEED, 0]
+  const omega = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0);
+  
+  // 1. Coriolis Acceleration: a_c = 2 * (omega x v_ground)
+  const a_coriolis = new THREE.Vector3().crossVectors(omega, v_ground).multiplyScalar(2);
+  
+  // 2. Centrifugal Acceleration: a_cf = omega x (omega x r)
+  const a_centrifugal = new THREE.Vector3().crossVectors(omega, pos);
+  a_centrifugal.crossVectors(omega, a_centrifugal);
+  
+  // 3. Total fictitious acceleration
+  const a_total = new THREE.Vector3().addVectors(a_coriolis, a_centrifugal);
+
+  // 4. Project onto Tangent Plane (Local Horizontal)
+  // n is the surface normal at current position
+  const n = pos.clone().normalize();
+  const radialComponent = a_total.dot(n);
+  const radialVector = n.multiplyScalar(radialComponent);
+  
+  // Horizontal force = Total - Radial
+  // This represents the "sideways" force the aircraft must provide to stay on the ground track
+  return new THREE.Vector3().subVectors(a_total, radialVector);
+}

@@ -143,6 +143,15 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
 
         <Section title="Environment" defaultOpen={false}>
           <div className={styles.controlGroup}>
+            <button 
+              className={`${styles.btn} ${state.atmosphereOn ? styles.active : ''}`}
+              onClick={() => onUpdateParam('atmosphereOn', !state.atmosphereOn)}
+            >
+              {state.atmosphereOn ? 'Atmosphere: ON (Coupled)' : 'Atmosphere: OFF (Vacuum)'}
+            </button>
+          </div>
+
+          <div className={styles.controlGroup}>
             <label className={styles.controlLabel}>Plane Opacity: {state.planeOpacity.toFixed(2)}</label>
             <input 
               type="range" 
@@ -245,6 +254,9 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
             </p>
             <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '4px' }}>
               <strong>Earth-Fixed Frame:</strong> Aircraft A deflects (Coriolis) while B follows the Great Circle.
+            </p>
+            <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '8px' }}>
+              <strong>Why don't pilots feel this?</strong> Normal aircraft are "coupled" to the rotating atmosphere. Aerodynamic lift and slight banking provide the steering force (Coriolis correction) automatically. Turn <strong>Atmosphere OFF</strong> to see the massive correction thrust required to stay on track in a vacuum!
             </p>
           </div>
         </Section>

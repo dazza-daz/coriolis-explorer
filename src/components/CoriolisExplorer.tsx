@@ -41,6 +41,7 @@ const CoriolisExplorer: React.FC = () => {
     earthOpacity: 0.9,
     showGrid: true,
     useRealUnits: true, // Default to km/h for better realism
+    atmosphereOn: true,
   });
 
   useEffect(() => {

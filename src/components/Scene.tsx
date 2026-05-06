@@ -5,7 +5,7 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars, Line, PerspectiveCamera, useTexture, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { SimulationState } from './CoriolisExplorer';
-import { EARTH_RADIUS, EARTH_ROTATION_SPEED, latLonToVector3, getGroundPathPosition, calculateInertialTrajectory, getInertialPathPositionFromTrajectory, SPEED_TO_KMH } from '../utils/math';
+import { EARTH_RADIUS, EARTH_ROTATION_SPEED, latLonToVector3, getGroundPathPosition, calculateInertialTrajectory, getInertialPathPositionFromTrajectory, SPEED_TO_KMH, getRequiredSteeringForce } from '../utils/math';
 
 interface SceneProps {
   state: SimulationState;
@@ -102,7 +102,7 @@ const VelocityArrow = ({ position, velocity, color, label, useRealUnits }: { pos
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, atmosphereOn } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
@@ -165,11 +165,13 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   if (axisB.length() < 0.001) axisB.set(0, 1, 0);
   const velB_Ground = new THREE.Vector3().crossVectors(axisB, currentPosB_Ground).normalize().multiplyScalar(groundSpeed * EARTH_RADIUS);
 
+  // Steering force required for B
+  const f_steer = getRequiredSteeringForce(currentPosB_Ground, velB_Ground);
+
   // Velocity A (Inertial)
   const velA_Inertial = new THREE.Vector3().crossVectors(orbitalAxis, currentPosA_Inertial).normalize().multiplyScalar(angularSpeed * EARTH_RADIUS);
   
   // v_ground = v_inertial - omega_e x r
-  // Use correct omega for subtraction
   const omegaE = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0); 
   const velA_Rot = new THREE.Vector3().crossVectors(omegaE, currentPosA_Inertial);
   const velA_Ground_InertialFrame = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
@@ -204,6 +206,11 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
           <meshStandardMaterial color="cyan" emissive="cyan" emissiveIntensity={2} />
         </mesh>
         <VelocityArrow position={currentPosB_Ground} velocity={velB_Ground} color="cyan" label="V_G (B)" useRealUnits={useRealUnits} />
+        
+        {/* Steering Force for B (Magenta) - Projected horizontal correction */}
+        {!atmosphereOn && (
+           <VelocityArrow position={currentPosB_Ground} velocity={f_steer.clone().multiplyScalar(1)} color="#ff00ff" label="Required Correction" useRealUnits={false} />
+        )}
 
         {/* Aircraft A Ground Track & Marker */}
         <Line 
