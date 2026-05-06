@@ -2,6 +2,8 @@
 
 An interactive 3D visualization tool built to demonstrate the Coriolis effect and the physics of rotating reference frames. Compare the paths of a ballistic orbital object and a ground-following aircraft as they traverse a rotating Earth.
 
+![Coriolis Explorer Preview](./public/screenshot.png)
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react)
