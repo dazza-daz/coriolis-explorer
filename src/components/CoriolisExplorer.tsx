@@ -20,6 +20,8 @@ export interface SimulationState {
   groundSpeed: number; // in relative units or km/h
   recenterToggle: boolean;
   planeOpacity: number;
+  earthOpacity: number;
+  showGrid: boolean;
 }
 
 const CoriolisExplorer: React.FC = () => {
@@ -35,6 +37,8 @@ const CoriolisExplorer: React.FC = () => {
     groundSpeed: 0.5, // Faster default speed
     recenterToggle: false,
     planeOpacity: 0.1,
+    earthOpacity: 0.9,
+    showGrid: true,
   });
 
   useEffect(() => {

@@ -11,19 +11,61 @@ interface SceneProps {
   state: SimulationState;
 }
 
-const Earth = () => {
+const SphericalGrid = ({ opacity }: { opacity: number }) => {
+  const lines = useMemo(() => {
+    const pts = [];
+    // Latitudes
+    for (let lat = -75; lat <= 75; lat += 15) {
+      const phi = (90 - lat) * (Math.PI / 180);
+      const r = EARTH_RADIUS * 1.001 * Math.sin(phi);
+      const y = EARTH_RADIUS * 1.001 * Math.cos(phi);
+      const circlePts = [];
+      for (let i = 0; i <= 64; i++) {
+        const theta = (i / 64) * Math.PI * 2;
+        circlePts.push(new THREE.Vector3(r * Math.cos(theta), y, r * Math.sin(theta)));
+      }
+      pts.push(circlePts);
+    }
+    // Longitudes
+    for (let lon = 0; lon < 180; lon += 15) {
+      const circlePts = [];
+      for (let i = 0; i <= 64; i++) {
+        const angle = (i / 64) * Math.PI * 2;
+        const p = new THREE.Vector3(EARTH_RADIUS * 1.001 * Math.cos(angle), EARTH_RADIUS * 1.001 * Math.sin(angle), 0);
+        p.applyAxisAngle(new THREE.Vector3(0, 1, 0), lon * (Math.PI / 180));
+        circlePts.push(p);
+      }
+      pts.push(circlePts);
+    }
+    return pts;
+  }, []);
+
+  return (
+    <group>
+      {lines.map((linePts, i) => (
+        <Line key={i} points={linePts} color="white" lineWidth={1} transparent opacity={opacity} depthWrite={false} />
+      ))}
+    </group>
+  );
+};
+
+const Earth = ({ opacity, showGrid }: { opacity: number; showGrid: boolean }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const texture = useTexture('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
 
   return (
-    <mesh ref={meshRef}>
-      <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
-      <meshStandardMaterial map={texture} transparent opacity={0.9} />
-      <gridHelper 
-        args={[EARTH_RADIUS * 2.1, 24, 0x444444, 0x222222]} 
-        rotation={[Math.PI / 2, 0, 0]} 
-      />
-    </mesh>
+    <group>
+      <mesh ref={meshRef}>
+        <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
+        <meshStandardMaterial 
+          map={texture} 
+          transparent 
+          opacity={opacity} 
+          depthWrite={opacity > 0.5} 
+        />
+      </mesh>
+      {showGrid && <SphericalGrid opacity={0.3} />}
+    </group>
   );
 };
 
@@ -42,7 +84,7 @@ const VelocityArrow = ({ position, velocity, color, label }: { position: THREE.V
           padding: '2px 6px', 
           borderRadius: '4px', 
           fontSize: '11px', 
-          fontWeight: 'bold',
+          fontWeight: 'bold', 
           whiteSpace: 'nowrap', 
           border: `1px solid ${color}`,
           pointerEvents: 'none',
@@ -56,7 +98,7 @@ const VelocityArrow = ({ position, velocity, color, label }: { position: THREE.V
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
@@ -136,7 +178,7 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
     <>
       {/* Earth-Fixed Frame Group (Rotates in Inertial View) */}
       <group rotation={[0, earthRotation, 0]}>
-        <Earth />
+        <Earth opacity={earthOpacity} showGrid={showGrid} />
 
         {/* Great Circle Plane for B (Cyan) - Square, Parallel to path */}
         <mesh rotation={new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axisB))}>

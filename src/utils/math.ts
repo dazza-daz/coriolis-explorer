@@ -106,3 +106,25 @@ export function getInertialPathPositionFromTrajectory(
   pos.applyQuaternion(q);
   return pos;
 }
+
+export function getCurrentGroundSpeedA(
+  startPos: THREE.Vector3,
+  t: number,
+  orbitalAxis: THREE.Vector3,
+  angularSpeed: number,
+  timeOfFlight: number
+): number {
+  const effectiveTime = Math.min(t, timeOfFlight);
+  const posA = getInertialPathPositionFromTrajectory(startPos, effectiveTime, orbitalAxis, angularSpeed, timeOfFlight);
+  
+  // v_i = omega_orbit x r
+  const velA_Inertial = new THREE.Vector3().crossVectors(orbitalAxis, posA).normalize().multiplyScalar(angularSpeed * EARTH_RADIUS);
+  
+  // v_rot = omega_e x r
+  const omegaE = new THREE.Vector3(0, -EARTH_ROTATION_SPEED, 0); 
+  const velA_Rot = new THREE.Vector3().crossVectors(omegaE, posA);
+  
+  // v_g = v_i - v_rot
+  const velA_Ground = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
+  return velA_Ground.length() / EARTH_RADIUS; // Normalized units
+}

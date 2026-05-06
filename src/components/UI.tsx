@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { latLonToVector3, calculateInertialTrajectory } from '../utils/math';
+import { SimulationState, ViewMode } from './CoriolisExplorer';
+import { latLonToVector3, calculateInertialTrajectory, getCurrentGroundSpeedA } from '../utils/math';
 import styles from './UI.module.css';
 
 interface UIProps {
@@ -16,7 +17,10 @@ interface UIProps {
 const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, onChangeView, onUpdateParam }) => {
   const startPos = latLonToVector3(state.startLat, state.startLon);
   const endPos = latLonToVector3(state.endLat, state.endLon);
-  const { requiredInitialGroundSpeed } = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
+  const trajectoryA = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
+  const { requiredInitialGroundSpeed, orbitalAxis, angularSpeed, timeOfFlight } = trajectoryA;
+
+  const currentSpeedA = getCurrentGroundSpeedA(startPos, state.time, orbitalAxis, angularSpeed, timeOfFlight);
 
   return (
     <div className={styles.overlay}>
@@ -111,6 +115,28 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
         </div>
 
         <div className={styles.controlGroup}>
+          <label className={styles.controlLabel}>Earth Opacity: {state.earthOpacity.toFixed(2)}</label>
+          <input 
+            type="range" 
+            min="0" 
+            max="1" 
+            step="0.01" 
+            className={styles.rangeInput}
+            value={state.earthOpacity}
+            onChange={(e) => onUpdateParam('earthOpacity', parseFloat(e.target.value))}
+          />
+        </div>
+
+        <div className={styles.controlGroup}>
+          <button 
+            className={`${styles.btn} ${state.showGrid ? styles.active : ''}`}
+            onClick={() => onUpdateParam('showGrid', !state.showGrid)}
+          >
+            {state.showGrid ? 'Hide Lat/Lon Grid' : 'Show Lat/Lon Grid'}
+          </button>
+        </div>
+
+        <div className={styles.controlGroup}>
           <label className={styles.controlLabel}>Scenario Presets</label>
           <div className={styles.presets}>
             <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
@@ -150,11 +176,17 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
       <footer className={styles.legend}>
         <div className={styles.legendItem}>
           <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
-          <span>Aircraft A (Orbital/Ballistic)</span>
+          <div className={styles.legendText}>
+            <span>Aircraft A (Orbital)</span>
+            <span className={styles.speedBadge}>V_G: {currentSpeedA.toFixed(3)}</span>
+          </div>
         </div>
         <div className={styles.legendItem}>
           <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
-          <span>Aircraft B (Ground-Following)</span>
+          <div className={styles.legendText}>
+            <span>Aircraft B (Ground-Following)</span>
+            <span className={styles.speedBadge}>V_G: {state.groundSpeed.toFixed(3)}</span>
+          </div>
         </div>
       </footer>
     </div>
