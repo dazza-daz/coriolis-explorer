@@ -1,24 +1,76 @@
-.overlay {
+.persistentBar {
   position: absolute;
   top: 20px;
   left: 20px;
-  width: 350px;
-  max-height: calc(100vh - 40px);
-  padding: 20px;
-  background: rgba(20, 20, 25, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 101;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.persistentBar.shifted {
+  transform: translateX(340px);
+}
+
+@media (max-width: 480px) {
+  .persistentBar.shifted {
+    transform: translateX(calc(100vw - 64px));
+  }
+}
+
+.iconBtn {
+  width: 44px;
+  height: 44px;
+  background: rgba(30, 30, 40, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
   color: white;
-  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.iconBtn:hover {
+  background: rgba(59, 130, 246, 0.9);
+  border-color: #60a5fa;
+}
+
+.iconBtn.active {
+  background: #3b82f6;
+  border-color: #60a5fa;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 350px;
+  height: 100vh;
+  max-height: 100vh;
+  padding: 20px;
+  background: rgba(15, 15, 20, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  z-index: 100;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  box-shadow: 12px 0 48px rgba(0, 0, 0, 0.6);
   overflow-y: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.overlay.closed {
+  transform: translateX(-100%);
 }
 
 .overlay::-webkit-scrollbar {
@@ -28,6 +80,13 @@
 .overlay::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 4px;
+}
+
+@media (max-width: 480px) {
+  .overlay {
+    width: 100%;
+    border-right: none;
+  }
 }
 
 .header h1 {

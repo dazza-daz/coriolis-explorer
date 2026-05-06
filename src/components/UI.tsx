@@ -30,6 +30,8 @@ const Section = ({ title, children, defaultOpen = true }: { title: string, child
 };
 
 const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, onChangeView, onUpdateParam }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(true);
+
   const startPos = latLonToVector3(state.startLat, state.startLon);
   const endPos = latLonToVector3(state.endLat, state.endLon);
   const trajectoryA = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
@@ -38,194 +40,216 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
   const currentSpeedA = getCurrentGroundSpeedA(startPos, state.time, orbitalAxis, angularSpeed, timeOfFlight);
 
   return (
-    <div className={styles.overlay}>
-      <header className={styles.header}>
-        <h1>Coriolis Explorer</h1>
-      </header>
+    <>
+      <div className={`${styles.persistentBar} ${isMenuOpen ? styles.shifted : ''}`}>
+        <button 
+          className={styles.iconBtn}
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          title={isMenuOpen ? 'Close Menu' : 'Open Menu'}
+        >
+          {isMenuOpen ? '✕' : '☰'}
+        </button>
+        
+        <button 
+          className={`${styles.iconBtn} ${state.isPlaying ? styles.active : ''}`}
+          onClick={onTogglePlay}
+          title={state.isPlaying ? 'Pause' : 'Play'}
+        >
+          {state.isPlaying ? '⏸' : '▶'}
+        </button>
 
-      <Section title="Simulation Controls">
-        <div className={styles.buttonGroup}>
-          <button 
-            onClick={onTogglePlay} 
-            className={`${styles.btn} ${state.isPlaying ? styles.active : ''}`}
-          >
-            {state.isPlaying ? 'Pause' : 'Play'}
-          </button>
-          <button onClick={onReset} className={styles.btn}>Reset</button>
-          <button onClick={onRecenterView} className={styles.btn} style={{ gridColumn: 'span 2' }}>Recenter Camera</button>
-        </div>
+        <button 
+          className={styles.iconBtn}
+          onClick={onReset}
+          title="Reset Simulation"
+        >
+          ↺
+        </button>
+      </div>
 
-        <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>View Mode</label>
-          <div className={styles.toggleGroup}>
+      <div className={`${styles.overlay} ${isMenuOpen ? '' : styles.closed}`}>
+        <header className={styles.header}>
+          <h1>Coriolis Explorer</h1>
+        </header>
+
+        <Section title="Simulation Controls">
+          <div className={styles.controlGroup}>
+            <button onClick={onRecenterView} className={styles.btn}>Recenter Camera</button>
+          </div>
+
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel}>View Mode</label>
+            <div className={styles.toggleGroup}>
+              <button 
+                className={`${styles.btn} ${state.viewMode === 'INERTIAL' ? styles.active : ''}`}
+                onClick={() => onChangeView('INERTIAL')}
+              >
+                Inertial
+              </button>
+              <button 
+                className={`${styles.btn} ${state.viewMode === 'EARTH_FIXED' ? styles.active : ''}`}
+                onClick={() => onChangeView('EARTH_FIXED')}
+              >
+                Earth-Fixed
+              </button>
+            </div>
+          </div>
+
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel}>Time Speed: {state.timeMultiplier}x</label>
+            <input 
+              type="range" 
+              min="0.1" 
+              max="5" 
+              step="0.1" 
+              className={styles.rangeInput}
+              value={state.timeMultiplier}
+              onChange={(e) => onUpdateParam('timeMultiplier', parseFloat(e.target.value))}
+            />
+          </div>
+
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel}>
+              Aircraft B Speed: {state.groundSpeed.toFixed(2)}
+            </label>
+            <input 
+              type="range" 
+              min="0.01" 
+              max="2" 
+              step="0.01" 
+              className={styles.rangeInput}
+              value={state.groundSpeed}
+              onChange={(e) => onUpdateParam('groundSpeed', parseFloat(e.target.value))}
+            />
+          </div>
+        </Section>
+
+        <Section title="Environment" defaultOpen={false}>
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel}>Plane Opacity: {state.planeOpacity.toFixed(2)}</label>
+            <input 
+              type="range" 
+              min="0" 
+              max="0.5" 
+              step="0.01" 
+              className={styles.rangeInput}
+              value={state.planeOpacity}
+              onChange={(e) => onUpdateParam('planeOpacity', parseFloat(e.target.value))}
+            />
+          </div>
+
+          <div className={styles.controlGroup}>
+            <label className={styles.controlLabel}>Earth Opacity: {state.earthOpacity.toFixed(2)}</label>
+            <input 
+              type="range" 
+              min="0" 
+              max="1" 
+              step="0.01" 
+              className={styles.rangeInput}
+              value={state.earthOpacity}
+              onChange={(e) => onUpdateParam('earthOpacity', parseFloat(e.target.value))}
+            />
+          </div>
+
+          <div className={styles.controlGroup}>
             <button 
-              className={`${styles.btn} ${state.viewMode === 'INERTIAL' ? styles.active : ''}`}
-              onClick={() => onChangeView('INERTIAL')}
+              className={`${styles.btn} ${state.showGrid ? styles.active : ''}`}
+              onClick={() => onUpdateParam('showGrid', !state.showGrid)}
             >
-              Inertial
-            </button>
-            <button 
-              className={`${styles.btn} ${state.viewMode === 'EARTH_FIXED' ? styles.active : ''}`}
-              onClick={() => onChangeView('EARTH_FIXED')}
-            >
-              Earth-Fixed
+              {state.showGrid ? 'Hide Lat/Lon Grid' : 'Show Lat/Lon Grid'}
             </button>
           </div>
-        </div>
+        </Section>
 
-        <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>Time Speed: {state.timeMultiplier}x</label>
-          <input 
-            type="range" 
-            min="0.1" 
-            max="5" 
-            step="0.1" 
-            className={styles.rangeInput}
-            value={state.timeMultiplier}
-            onChange={(e) => onUpdateParam('timeMultiplier', parseFloat(e.target.value))}
-          />
-        </div>
-
-        <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>
-            Aircraft B Speed: {state.groundSpeed.toFixed(2)}
-          </label>
-          <input 
-            type="range" 
-            min="0.01" 
-            max="2" 
-            step="0.01" 
-            className={styles.rangeInput}
-            value={state.groundSpeed}
-            onChange={(e) => onUpdateParam('groundSpeed', parseFloat(e.target.value))}
-          />
-        </div>
-      </Section>
-
-      <Section title="Environment" defaultOpen={false}>
-        <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>Plane Opacity: {state.planeOpacity.toFixed(2)}</label>
-          <input 
-            type="range" 
-            min="0" 
-            max="0.5" 
-            step="0.01" 
-            className={styles.rangeInput}
-            value={state.planeOpacity}
-            onChange={(e) => onUpdateParam('planeOpacity', parseFloat(e.target.value))}
-          />
-        </div>
-
-        <div className={styles.controlGroup}>
-          <label className={styles.controlLabel}>Earth Opacity: {state.earthOpacity.toFixed(2)}</label>
-          <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.01" 
-            className={styles.rangeInput}
-            value={state.earthOpacity}
-            onChange={(e) => onUpdateParam('earthOpacity', parseFloat(e.target.value))}
-          />
-        </div>
-
-        <div className={styles.controlGroup}>
-          <button 
-            className={`${styles.btn} ${state.showGrid ? styles.active : ''}`}
-            onClick={() => onUpdateParam('showGrid', !state.showGrid)}
-          >
-            {state.showGrid ? 'Hide Lat/Lon Grid' : 'Show Lat/Lon Grid'}
-          </button>
-        </div>
-      </Section>
-
-      <Section title="Presets" defaultOpen={false}>
-        <div className={styles.presets}>
-          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-            onUpdateParam('startLat', 90);
-            onUpdateParam('startLon', 0);
-            onUpdateParam('endLat', 0);
-            onUpdateParam('endLon', 0);
-            onUpdateParam('groundSpeed', 0.5);
-            onReset();
-          }}>North Pole to Equator</button>
-          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-            onUpdateParam('startLat', 45);
-            onUpdateParam('startLon', 0);
-            onUpdateParam('endLat', -45);
-            onUpdateParam('endLon', 0);
-            onUpdateParam('groundSpeed', 0.6);
-            onReset();
-          }}>Cross-Equator (45°N to 45°S)</button>
-          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-            onUpdateParam('startLat', 0);
-            onUpdateParam('startLon', 0);
-            onUpdateParam('endLat', 0);
-            onUpdateParam('endLon', -90);
-            onUpdateParam('groundSpeed', 0.5); // Matches EARTH_ROTATION_SPEED
-            onReset();
-          }}>Inertial Hover (Equator West)</button>
-          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-            onUpdateParam('startLat', 89);
-            onUpdateParam('startLon', 0);
-            onUpdateParam('endLat', -89);
-            onUpdateParam('endLon', 0);
-            onUpdateParam('groundSpeed', 0.8);
-            onReset();
-          }}>The Long Haul (Pole to Pole)</button>
-          <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
-            onUpdateParam('startLat', 45);
-            onUpdateParam('startLon', 0);
-            onUpdateParam('endLat', 45);
-            onUpdateParam('endLon', 40);
-            onUpdateParam('groundSpeed', 0.7);
-            onReset();
-          }}>West to East (45°N)</button>
-        </div>      </Section>
-
-      <Section title="Information" defaultOpen={false}>
-        <div className={styles.info}>
-           <div className={styles.velocityIndicator}>
-             <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
-             <label className={styles.controlLabel}>V_Ground (B): {state.groundSpeed.toFixed(3)}</label>
-           </div>
-           <div className={styles.velocityIndicator}>
-             <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
-             <label className={styles.controlLabel}>V_Ground (A): {requiredInitialGroundSpeed.toFixed(3)}</label>
-           </div>
-           <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
-             (Launch speed for A is auto-calculated to hit the target at the same time as B)
-           </p>
-        </div>
-
-        <div className={styles.info} style={{ marginTop: '12px' }}>
-          <h3>Quick Facts</h3>
-          <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>
-            <strong>Inertial Frame:</strong> Aircraft A follows a planar orbital path while Earth rotates.
-          </p>
-          <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '4px' }}>
-            <strong>Earth-Fixed Frame:</strong> Aircraft A deflects (Coriolis) while B follows the Great Circle.
-          </p>
-        </div>
-      </Section>
-
-      <footer className={styles.legend}>
-        <div className={styles.legendItem}>
-          <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
-          <div className={styles.legendText}>
-            <span>Aircraft A (Orbital)</span>
-            <span className={styles.speedBadge}>V_G: {currentSpeedA.toFixed(3)}</span>
+        <Section title="Presets" defaultOpen={false}>
+          <div className={styles.presets}>
+            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+              onUpdateParam('startLat', 90);
+              onUpdateParam('startLon', 0);
+              onUpdateParam('endLat', 0);
+              onUpdateParam('endLon', 0);
+              onUpdateParam('groundSpeed', 0.5);
+              onReset();
+            }}>North Pole to Equator</button>
+            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+              onUpdateParam('startLat', 45);
+              onUpdateParam('startLon', 0);
+              onUpdateParam('endLat', -45);
+              onUpdateParam('endLon', 0);
+              onUpdateParam('groundSpeed', 0.6);
+              onReset();
+            }}>Cross-Equator (45°N to 45°S)</button>
+            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+              onUpdateParam('startLat', 0);
+              onUpdateParam('startLon', 0);
+              onUpdateParam('endLat', 0);
+              onUpdateParam('endLon', -90);
+              onUpdateParam('groundSpeed', 0.5); // Matches EARTH_ROTATION_SPEED
+              onReset();
+            }}>Inertial Hover (Equator West)</button>
+            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+              onUpdateParam('startLat', 89);
+              onUpdateParam('startLon', 0);
+              onUpdateParam('endLat', -89);
+              onUpdateParam('endLon', 0);
+              onUpdateParam('groundSpeed', 0.8);
+              onReset();
+            }}>The Long Haul (Pole to Pole)</button>
+            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+              onUpdateParam('startLat', 45);
+              onUpdateParam('startLon', 0);
+              onUpdateParam('endLat', 45);
+              onUpdateParam('endLon', 40);
+              onUpdateParam('groundSpeed', 0.7);
+              onReset();
+            }}>West to East (45°N)</button>
           </div>
-        </div>
-        <div className={styles.legendItem}>
-          <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
-          <div className={styles.legendText}>
-            <span>Aircraft B (Ground-Following)</span>
-            <span className={styles.speedBadge}>V_G: {state.groundSpeed.toFixed(3)}</span>
+        </Section>
+
+        <Section title="Information" defaultOpen={false}>
+          <div className={styles.info}>
+             <div className={styles.velocityIndicator}>
+               <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
+               <label className={styles.controlLabel}>V_Ground (B): {state.groundSpeed.toFixed(3)}</label>
+             </div>
+             <div className={styles.velocityIndicator}>
+               <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
+               <label className={styles.controlLabel}>V_Ground (A): {requiredInitialGroundSpeed.toFixed(3)}</label>
+             </div>
+             <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
+               (Launch speed for A is auto-calculated to hit the target at the same time as B)
+             </p>
           </div>
-        </div>
-      </footer>
-    </div>
+
+          <div className={styles.info} style={{ marginTop: '12px' }}>
+            <h3>Quick Facts</h3>
+            <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+              <strong>Inertial Frame:</strong> Aircraft A follows a planar orbital path while Earth rotates.
+            </p>
+            <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '4px' }}>
+              <strong>Earth-Fixed Frame:</strong> Aircraft A deflects (Coriolis) while B follows the Great Circle.
+            </p>
+          </div>
+        </Section>
+
+        <footer className={styles.legend}>
+          <div className={styles.legendItem}>
+            <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
+            <div className={styles.legendText}>
+              <span>Aircraft A (Orbital)</span>
+              <span className={styles.speedBadge}>V_G: {currentSpeedA.toFixed(3)}</span>
+            </div>
+          </div>
+          <div className={styles.legendItem}>
+            <span className={styles.colorBox} style={{ backgroundColor: 'cyan' }}></span>
+            <div className={styles.legendText}>
+              <span>Aircraft B (Ground-Following)</span>
+              <span className={styles.speedBadge}>V_G: {state.groundSpeed.toFixed(3)}</span>
+            </div>
+          </div>
+        </footer>
+      </div>
+    </>
   );
 };
 
