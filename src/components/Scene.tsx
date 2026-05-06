@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, Line, PerspectiveCamera, useTexture, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { SimulationState, ViewMode } from './CoriolisExplorer';
+import { SimulationState } from './CoriolisExplorer';
 import { EARTH_RADIUS, EARTH_ROTATION_SPEED, latLonToVector3, getGroundPathPosition, calculateInertialTrajectory, getInertialPathPositionFromTrajectory } from '../utils/math';
 
 interface SceneProps {
@@ -56,7 +56,7 @@ const VelocityArrow = ({ position, velocity, color, label }: { position: THREE.V
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
@@ -127,10 +127,6 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   const velA_Rot = new THREE.Vector3().crossVectors(omegaE, currentPosA_Inertial);
   const velA_Ground_InertialFrame = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   
-  // Transform A's ground position and velocity for the Earth-Fixed group
-  // The Earth-Fixed group has rotation [0, earthRotation, 0]
-  // In INERTIAL view, earthRotation = time * EARTH_ROTATION_SPEED. 
-  // To keep Aircraft A correctly positioned on the ground, we must undo this rotation
   const earthFrameRotationAdjustment = -time * EARTH_ROTATION_SPEED;
   
   const currentPosA_Ground = currentPosA_Inertial.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), earthFrameRotationAdjustment);
@@ -141,6 +137,18 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
       {/* Earth-Fixed Frame Group (Rotates in Inertial View) */}
       <group rotation={[0, earthRotation, 0]}>
         <Earth />
+
+        {/* Great Circle Plane for B (Cyan) - Square, Parallel to path */}
+        <mesh rotation={new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axisB))}>
+          <planeGeometry args={[EARTH_RADIUS * 4.2, EARTH_RADIUS * 4.2]} />
+          <meshBasicMaterial 
+            color="cyan" 
+            transparent 
+            opacity={planeOpacity} 
+            side={THREE.DoubleSide} 
+            depthWrite={false}
+          />
+        </mesh>
         
         {/* Aircraft B Trail & Marker */}
         <Line points={pointsB_Ground} color="cyan" lineWidth={2} />
@@ -151,12 +159,11 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
         <VelocityArrow position={currentPosB_Ground} velocity={velB_Ground} color="cyan" label="V_G (B)" />
 
         {/* Aircraft A Ground Track & Marker */}
-        <Line points={pointsA_Ground} color="red" lineWidth={2} opacity={0.6} transparent />
+        <Line points={pointsA_Ground} color="red" lineWidth={3} opacity={0.8} transparent />
         <mesh position={currentPosA_Ground}>
            <sphereGeometry args={[0.08, 16, 16]} />
            <meshStandardMaterial color="red" transparent opacity={0.8} />
         </mesh>
-        {/* Only show ground velocity arrow in Earth-Fixed view or when relevant to ground track */}
         <VelocityArrow position={currentPosA_Ground} velocity={velA_Ground_EarthFrame} color="red" label="V_G (A)" />
       </group>
 
@@ -164,10 +171,16 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
       <group rotation={[0, spaceRotation, 0]}>
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
         
-        {/* Visual guide for the inertial plane of Aircraft A */}
-        <mesh rotation={new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), orbitalAxis))}>
-          <ringGeometry args={[EARTH_RADIUS * 0.99, EARTH_RADIUS * 1.01, 64]} />
-          <meshBasicMaterial color="red" transparent opacity={0.1} side={THREE.DoubleSide} />
+        {/* Visual guide for the inertial plane of Aircraft A (Red) - Square, Parallel to path */}
+        <mesh rotation={new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), orbitalAxis))}>
+          <planeGeometry args={[EARTH_RADIUS * 4.2, EARTH_RADIUS * 4.2]} />
+          <meshBasicMaterial 
+            color="red" 
+            transparent 
+            opacity={planeOpacity} 
+            side={THREE.DoubleSide} 
+            depthWrite={false}
+          />
         </mesh>
 
         {/* Aircraft A True Inertial Path & Marker */}
@@ -176,24 +189,28 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
           <sphereGeometry args={[0.15, 16, 16]} />
           <meshStandardMaterial color="red" emissive="red" emissiveIntensity={2} />
         </mesh>
-        {/* Show Inertial Velocity ONLY in Inertial View to avoid clutter */}
-        {viewMode === 'INERTIAL' && (
-          <VelocityArrow position={currentPosA_Inertial} velocity={velA_Inertial} color="#ff8888" label="V_I (A)" />
-        )}
       </group>
     </>
   );
 };
 
 const Scene: React.FC<SceneProps> = ({ state }) => {
+  const controlsRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  }, [state.recenterToggle]);
+
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <Canvas shadows>
         <PerspectiveCamera makeDefault position={[12, 8, 12]} />
-        <OrbitControls enableDamping />
+        <OrbitControls ref={controlsRef} enableDamping />
         <ambientLight intensity={0.6} />
         <pointLight position={[20, 20, 20]} intensity={2} />
-        
+
         <React.Suspense fallback={null}>
           <Trajectories state={state} />
         </React.Suspense>

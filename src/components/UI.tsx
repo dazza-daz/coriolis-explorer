@@ -8,11 +8,12 @@ interface UIProps {
   state: SimulationState;
   onTogglePlay: () => void;
   onReset: () => void;
+  onRecenterView: () => void;
   onChangeView: (view: ViewMode) => void;
   onUpdateParam: (key: keyof SimulationState, value: number | string | boolean) => void;
 }
 
-const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onChangeView, onUpdateParam }) => {
+const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, onChangeView, onUpdateParam }) => {
   const startPos = latLonToVector3(state.startLat, state.startLon);
   const endPos = latLonToVector3(state.endLat, state.endLon);
   const { requiredInitialGroundSpeed } = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
@@ -33,6 +34,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onChangeView, onU
             {state.isPlaying ? 'Pause' : 'Play'}
           </button>
           <button onClick={onReset} className={styles.btn}>Reset</button>
+          <button onClick={onRecenterView} className={styles.btn} style={{ gridColumn: 'span 2' }}>Recenter Camera</button>
         </div>
 
         <div className={styles.controlGroup}>
@@ -93,6 +95,19 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onChangeView, onU
            <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
              (V_Ground A is the required launch speed to hit the target at the same time as B)
            </p>
+        </div>
+
+        <div className={styles.controlGroup}>
+          <label className={styles.controlLabel}>Plane Opacity: {state.planeOpacity.toFixed(2)}</label>
+          <input 
+            type="range" 
+            min="0" 
+            max="0.5" 
+            step="0.01" 
+            className={styles.rangeInput}
+            value={state.planeOpacity}
+            onChange={(e) => onUpdateParam('planeOpacity', parseFloat(e.target.value))}
+          />
         </div>
 
         <div className={styles.controlGroup}>

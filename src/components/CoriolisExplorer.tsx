@@ -18,6 +18,8 @@ export interface SimulationState {
   endLat: number;
   endLon: number;
   groundSpeed: number; // in relative units or km/h
+  recenterToggle: boolean;
+  planeOpacity: number;
 }
 
 const CoriolisExplorer: React.FC = () => {
@@ -31,6 +33,8 @@ const CoriolisExplorer: React.FC = () => {
     endLat: 0, // Heading towards Equator
     endLon: 0,
     groundSpeed: 0.5, // Faster default speed
+    recenterToggle: false,
+    planeOpacity: 0.1,
   });
 
   useEffect(() => {
@@ -59,6 +63,7 @@ const CoriolisExplorer: React.FC = () => {
 
   const handleTogglePlay = () => setState(s => ({ ...s, isPlaying: !s.isPlaying }));
   const handleReset = () => setState(s => ({ ...s, time: 0, isPlaying: false }));
+  const handleRecenterView = () => setState(s => ({ ...s, recenterToggle: !s.recenterToggle }));
   const handleChangeView = (viewMode: ViewMode) => setState(s => ({ ...s, viewMode }));
   const handleUpdateParam = (key: keyof SimulationState, value: number | string | boolean) => setState(s => ({ ...s, [key]: value }));
 
@@ -69,6 +74,7 @@ const CoriolisExplorer: React.FC = () => {
         state={state} 
         onTogglePlay={handleTogglePlay}
         onReset={handleReset}
+        onRecenterView={handleRecenterView}
         onChangeView={handleChangeView}
         onUpdateParam={handleUpdateParam}
       />
