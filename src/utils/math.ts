@@ -48,55 +48,87 @@ export function getGroundPathPosition(
 }
 
 /**
- * Calculates the exact inertial orbital parameters for Aircraft A to hit the destination 
- * at the exact same time as Aircraft B.
+ * Calculates the exact inertial orbital parameters for Aircraft A to hit the destination.
+ * 
+ * Mode 'SAME_TIME': A arrives at the same time as B (A's speed is calculated).
+ * Mode 'SAME_SPEED': A's initial ground speed magnitude matches B's (arrival time is calculated).
  */
 export function calculateInertialTrajectory(
   startPos: THREE.Vector3,
   endPos: THREE.Vector3,
-  groundSpeedB: number
+  groundSpeedB: number,
+  mode: 'SAME_TIME' | 'SAME_SPEED' = 'SAME_TIME'
 ) {
   const angleB = startPos.angleTo(endPos);
   if (angleB === 0) {
     return { orbitalAxis: new THREE.Vector3(0,1,0), angularSpeed: 0, requiredInitialGroundSpeed: 0, timeOfFlight: 0 };
   }
   
-  const timeOfFlight = angleB / groundSpeedB;
-  
-  // Destination position in the inertial frame at time of arrival
-  const targetInertialPos = endPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), timeOfFlight * EARTH_ROTATION_SPEED);
-  
-  // Inertial distance and speed
-  const inertialAngle = startPos.angleTo(targetInertialPos);
-  const angularSpeed = inertialAngle / timeOfFlight;
-  
-  // Orbital plane
-  let orbitalAxis = new THREE.Vector3().crossVectors(startPos, targetInertialPos).normalize();
-  if (orbitalAxis.length() < 0.001) {
-    // If start and target are collinear, any axis perpendicular to startPos works
-    orbitalAxis = new THREE.Vector3(0, 1, 0).cross(startPos).normalize();
+  const timeOfFlightB = angleB / groundSpeedB;
+
+  if (mode === 'SAME_TIME') {
+    const timeOfFlightA = timeOfFlightB;
+    const targetInertialPos = endPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), timeOfFlightA * EARTH_ROTATION_SPEED);
+    const inertialAngle = startPos.angleTo(targetInertialPos);
+    const angularSpeed = inertialAngle / timeOfFlightA;
+    let orbitalAxis = new THREE.Vector3().crossVectors(startPos, targetInertialPos).normalize();
+    if (orbitalAxis.length() < 0.001) orbitalAxis = new THREE.Vector3(0, 1, 0).cross(startPos).normalize();
+
+    const v_dir = new THREE.Vector3().crossVectors(orbitalAxis, startPos).normalize();
+    const v_inertial = v_dir.clone().multiplyScalar(angularSpeed * EARTH_RADIUS);
+    const v_rot = new THREE.Vector3().crossVectors(new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0), startPos);
+    const v_gs_initial = new THREE.Vector3().subVectors(v_inertial, v_rot);
+
+    return {
+      orbitalAxis,
+      angularSpeed,
+      requiredInitialGroundSpeed: v_gs_initial.length() / EARTH_RADIUS,
+      timeOfFlight: timeOfFlightA
+    };
+  } else {
+    // SAME_SPEED Mode: Find T such that launch_speed(T) == groundSpeedB
+    let t = timeOfFlightB;
+    let bestT = t;
+    let minDiff = Infinity;
+
+    // Use a simple root-finding loop
+    for (let i = 0; i < 30; i++) {
+      const targetPosAtT = endPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), t * EARTH_ROTATION_SPEED);
+      const inertialAngle = startPos.angleTo(targetPosAtT);
+      const angSpeed = inertialAngle / t;
+      const axis = new THREE.Vector3().crossVectors(startPos, targetPosAtT).normalize();
+      if (axis.length() < 0.001) axis.set(0,1,0);
+      
+      const v_dir = new THREE.Vector3().crossVectors(axis, startPos).normalize();
+      const v_inertial = v_dir.clone().multiplyScalar(angSpeed * EARTH_RADIUS);
+      const v_rot = new THREE.Vector3().crossVectors(new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0), startPos);
+      const v_gs = new THREE.Vector3().subVectors(v_inertial, v_rot);
+      const currentLaunchSpeed = v_gs.length() / EARTH_RADIUS;
+
+      const diff = currentLaunchSpeed - groundSpeedB;
+      if (Math.abs(diff) < minDiff) {
+        minDiff = Math.abs(diff);
+        bestT = t;
+      }
+      
+      // Heuristic adjustment: speed decreases as time increases
+      t = t + diff * 5.0; 
+      if (t <= 0) t = 0.01;
+    }
+
+    const finalTargetInertialPos = endPos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), bestT * EARTH_ROTATION_SPEED);
+    const finalInertialAngle = startPos.angleTo(finalTargetInertialPos);
+    const finalAngularSpeed = finalInertialAngle / bestT;
+    let finalOrbitalAxis = new THREE.Vector3().crossVectors(startPos, finalTargetInertialPos).normalize();
+    if (finalOrbitalAxis.length() < 0.001) finalOrbitalAxis = new THREE.Vector3(0, 1, 0).cross(startPos).normalize();
+
+    return {
+      orbitalAxis: finalOrbitalAxis,
+      angularSpeed: finalAngularSpeed,
+      requiredInitialGroundSpeed: groundSpeedB,
+      timeOfFlight: bestT
+    };
   }
-
-  // Calculate required initial ground velocity to display to user
-  const v_dir = new THREE.Vector3().crossVectors(orbitalAxis, startPos).normalize();
-  const v_inertial = v_dir.multiplyScalar(angularSpeed * EARTH_RADIUS);
-  
-  // v_rot = omega x startPos. 
-  // In our scene, Earth rotates around Y by +angle, so omega = [0, EARTH_ROTATION_SPEED, 0]
-  const omega = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0);
-  const v_rot = new THREE.Vector3().crossVectors(omega, startPos);
-  
-  // v_gs = v_inertial - v_rot
-  const v_gs_initial = new THREE.Vector3().subVectors(v_inertial, v_rot);
-  // Return as angular speed to match Aircraft B's state unit
-  const requiredInitialGroundSpeed = v_gs_initial.length() / EARTH_RADIUS;
-
-  return {
-    orbitalAxis,
-    angularSpeed,
-    requiredInitialGroundSpeed,
-    timeOfFlight
-  };
 }
 
 export function getInertialPathPositionFromTrajectory(
@@ -128,7 +160,7 @@ export function getCurrentGroundSpeedA(
   const velA_Inertial = new THREE.Vector3().crossVectors(orbitalAxis, posA).normalize().multiplyScalar(angularSpeed * EARTH_RADIUS);
   
   // v_rot = omega_e x r
-  const omegaE = new THREE.Vector3(0, -EARTH_ROTATION_SPEED, 0); 
+  const omegaE = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0); 
   const velA_Rot = new THREE.Vector3().crossVectors(omegaE, posA);
   
   // v_g = v_i - v_rot

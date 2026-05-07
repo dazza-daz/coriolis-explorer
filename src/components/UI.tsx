@@ -34,10 +34,11 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
 
   const startPos = latLonToVector3(state.startLat, state.startLon);
   const endPos = latLonToVector3(state.endLat, state.endLon);
-  const trajectoryA = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
-  const { requiredInitialGroundSpeed, orbitalAxis, angularSpeed, timeOfFlight } = trajectoryA;
+  const trajectoryA = calculateInertialTrajectory(startPos, endPos, state.groundSpeed, state.targetingMode);
+  const { requiredInitialGroundSpeed, orbitalAxis, angularSpeed, timeOfFlight: tA } = trajectoryA;
+  const tB = startPos.angleTo(endPos) / state.groundSpeed;
 
-  const currentSpeedA = getCurrentGroundSpeedA(startPos, state.time, orbitalAxis, angularSpeed, timeOfFlight);
+  const currentSpeedA = getCurrentGroundSpeedA(startPos, state.time, orbitalAxis, angularSpeed, tA);
 
   const formatSpeed = (s: number) => {
     // Input 's' is linear speed (magnitude)
@@ -81,6 +82,24 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
         </header>
 
         <Section title="Simulation Controls">
+          <div className={styles.controlGroup}>
+             <label className={styles.controlLabel}>Targeting Mode</label>
+             <div className={styles.toggleGroup}>
+                <button 
+                  className={`${styles.btn} ${state.targetingMode === 'SAME_TIME' ? styles.active : ''}`}
+                  onClick={() => onUpdateParam('targetingMode', 'SAME_TIME')}
+                >
+                  Same Time
+                </button>
+                <button 
+                  className={`${styles.btn} ${state.targetingMode === 'SAME_SPEED' ? styles.active : ''}`}
+                  onClick={() => onUpdateParam('targetingMode', 'SAME_SPEED')}
+                >
+                  Same Speed
+                </button>
+             </div>
+          </div>
+
           <div className={styles.controlGroup}>
              <button 
                 className={`${styles.btn} ${state.useRealUnits ? styles.active : ''}`}
@@ -190,6 +209,14 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
         <Section title="Presets" defaultOpen={false}>
           <div className={styles.presets}>
             <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
+              onUpdateParam('startLat', 0);
+              onUpdateParam('startLon', 0);
+              onUpdateParam('endLat', 90);
+              onUpdateParam('endLon', 0);
+              onUpdateParam('groundSpeed', 0.27); // ~900 km/h
+              onReset();
+            }}>Equator to North Pole</button>
+            <button className={`${styles.btn} ${styles.presetBtn}`} onClick={() => {
               onUpdateParam('startLat', 90);
               onUpdateParam('startLon', 0);
               onUpdateParam('endLat', 0);
@@ -243,8 +270,20 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
                <label className={styles.controlLabel}>V_Ground (A): {formatSpeed(requiredInitialGroundSpeed * EARTH_RADIUS)}</label>
              </div>
              <p style={{ fontSize: '0.7rem', marginTop: '8px', opacity: 0.6 }}>
-               (Launch speed for A is auto-calculated to hit the target at the same time as B)
+               {state.targetingMode === 'SAME_TIME' 
+                 ? '(Launch speed for A is auto-calculated to hit the target at the same time as B)'
+                 : '(Launch speed for A is forced to match B; arrival time is calculated)'}
              </p>
+          </div>
+
+          <div className={styles.info} style={{ marginTop: '12px' }}>
+            <label className={styles.controlLabel}>Flight Duration</label>
+            <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '4px' }}>
+              Aircraft A: {(tA * 100).toFixed(1)} mins (relative)
+            </p>
+            <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+              Aircraft B: {(tB * 100).toFixed(1)} mins (relative)
+            </p>
           </div>
 
           <div className={styles.info} style={{ marginTop: '12px' }}>

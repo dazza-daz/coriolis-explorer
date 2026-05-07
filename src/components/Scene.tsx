@@ -102,56 +102,58 @@ const VelocityArrow = ({ position, velocity, color, label, useRealUnits }: { pos
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, atmosphereOn } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, atmosphereOn, targetingMode } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
 
   // Derived orbital parameters for Aircraft A
   const trajectoryA = useMemo(() => 
-    calculateInertialTrajectory(startPos, endPos, groundSpeed),
-  [startPos, endPos, groundSpeed]);
+    calculateInertialTrajectory(startPos, endPos, groundSpeed, targetingMode),
+  [startPos, endPos, groundSpeed, targetingMode]);
 
-  const { orbitalAxis, angularSpeed, timeOfFlight } = trajectoryA;
+  const { orbitalAxis, angularSpeed, timeOfFlight: tA } = trajectoryA;
+  const tB = useMemo(() => startPos.angleTo(endPos) / groundSpeed, [startPos, endPos, groundSpeed]);
 
-  const maxT = Math.min(time, timeOfFlight);
+  const currentTA = Math.min(time, tA);
+  const currentTB = Math.min(time, tB);
 
   // Path A Ground Track (Coriolis curve in Earth frame)
   const pointsA_Ground = useMemo(() => {
     const pts = [];
     const step = 0.05;
-    for (let t = 0; t <= maxT; t += step) {
-      const pos = getInertialPathPositionFromTrajectory(startPos, t, orbitalAxis, angularSpeed, timeOfFlight);
+    for (let t = 0; t <= currentTA; t += step) {
+      const pos = getInertialPathPositionFromTrajectory(startPos, t, orbitalAxis, angularSpeed, tA);
       pos.applyAxisAngle(new THREE.Vector3(0, 1, 0), -t * EARTH_ROTATION_SPEED);
       pts.push(pos);
     }
-    const current = getInertialPathPositionFromTrajectory(startPos, maxT, orbitalAxis, angularSpeed, timeOfFlight);
-    current.applyAxisAngle(new THREE.Vector3(0, 1, 0), -maxT * EARTH_ROTATION_SPEED);
+    const current = getInertialPathPositionFromTrajectory(startPos, currentTA, orbitalAxis, angularSpeed, tA);
+    current.applyAxisAngle(new THREE.Vector3(0, 1, 0), -currentTA * EARTH_ROTATION_SPEED);
     pts.push(current);
     return pts;
-  }, [startPos, orbitalAxis, angularSpeed, timeOfFlight, maxT]);
+  }, [startPos, orbitalAxis, angularSpeed, tA, currentTA]);
 
   // Path A Inertial Path (Straight Great Circle in space)
   const pointsA_Space = useMemo(() => {
     const pts = [];
     const step = 0.05;
-    for (let t = 0; t <= maxT; t += step) {
-      pts.push(getInertialPathPositionFromTrajectory(startPos, t, orbitalAxis, angularSpeed, timeOfFlight));
+    for (let t = 0; t <= currentTA; t += step) {
+      pts.push(getInertialPathPositionFromTrajectory(startPos, t, orbitalAxis, angularSpeed, tA));
     }
-    pts.push(getInertialPathPositionFromTrajectory(startPos, maxT, orbitalAxis, angularSpeed, timeOfFlight));
+    pts.push(getInertialPathPositionFromTrajectory(startPos, currentTA, orbitalAxis, angularSpeed, tA));
     return pts;
-  }, [startPos, orbitalAxis, angularSpeed, timeOfFlight, maxT]);
+  }, [startPos, orbitalAxis, angularSpeed, tA, currentTA]);
 
   // Path B Ground Track (Straight Great Circle on Earth)
   const pointsB_Ground = useMemo(() => {
     const pts = [];
     const step = 0.05;
-    for (let t = 0; t <= maxT; t += step) {
+    for (let t = 0; t <= currentTB; t += step) {
       pts.push(getGroundPathPosition(startPos, endPos, t, groundSpeed));
     }
-    pts.push(getGroundPathPosition(startPos, endPos, maxT, groundSpeed));
+    pts.push(getGroundPathPosition(startPos, endPos, currentTB, groundSpeed));
     return pts;
-  }, [startPos, endPos, groundSpeed, timeOfFlight, maxT]);
+  }, [startPos, endPos, groundSpeed, currentTB]);
 
   const earthRotation = viewMode === 'INERTIAL' ? time * EARTH_ROTATION_SPEED : 0;
   const spaceRotation = viewMode === 'EARTH_FIXED' ? -time * EARTH_ROTATION_SPEED : 0;
@@ -171,13 +173,12 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   // Velocity A (Inertial)
   const velA_Inertial = new THREE.Vector3().crossVectors(orbitalAxis, currentPosA_Inertial).normalize().multiplyScalar(angularSpeed * EARTH_RADIUS);
   
-  // v_ground = v_inertial - omega_e x r
+  // v_ground = v_i - omega_e x r
   const omegaE = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0); 
   const velA_Rot = new THREE.Vector3().crossVectors(omegaE, currentPosA_Inertial);
   const velA_Ground_InertialFrame = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   
   const earthFrameRotationAdjustment = -time * EARTH_ROTATION_SPEED;
-  
   const currentPosA_Ground = currentPosA_Inertial.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), earthFrameRotationAdjustment);
   const velA_Ground_EarthFrame = velA_Ground_InertialFrame.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), earthFrameRotationAdjustment);
 
@@ -207,7 +208,7 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
         </mesh>
         <VelocityArrow position={currentPosB_Ground} velocity={velB_Ground} color="cyan" label="V_G (B)" useRealUnits={useRealUnits} />
         
-        {/* Steering Force for B (Magenta) - Projected horizontal correction */}
+        {/* Steering Force for B (Magenta) */}
         {!atmosphereOn && (
            <VelocityArrow position={currentPosB_Ground} velocity={f_steer.clone().multiplyScalar(1)} color="#ff00ff" label="Required Correction" useRealUnits={false} />
         )}

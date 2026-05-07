@@ -7,12 +7,14 @@ import styles from './CoriolisExplorer.module.css';
 import { latLonToVector3, calculateInertialTrajectory } from '../utils/math';
 
 export type ViewMode = 'INERTIAL' | 'EARTH_FIXED';
+export type TargetingMode = 'SAME_TIME' | 'SAME_SPEED';
 
 export interface SimulationState {
   isPlaying: boolean;
   time: number;
   timeMultiplier: number;
   viewMode: ViewMode;
+  targetingMode: TargetingMode;
   startLat: number;
   startLon: number;
   endLat: number;
@@ -32,6 +34,7 @@ const CoriolisExplorer: React.FC = () => {
     time: 0,
     timeMultiplier: 1,
     viewMode: 'INERTIAL',
+    targetingMode: 'SAME_TIME',
     startLat: 90, // Starting at North Pole
     startLon: 0,
     endLat: 0, // Heading towards Equator
@@ -48,17 +51,18 @@ const CoriolisExplorer: React.FC = () => {
   useEffect(() => {
     let frameId: number;
     
-    // Calculate current timeOfFlight to know when to stop
     const startPos = latLonToVector3(state.startLat, state.startLon);
     const endPos = latLonToVector3(state.endLat, state.endLon);
-    const { timeOfFlight } = calculateInertialTrajectory(startPos, endPos, state.groundSpeed);
+    const { timeOfFlight: tA } = calculateInertialTrajectory(startPos, endPos, state.groundSpeed, state.targetingMode);
+    const tB = startPos.angleTo(endPos) / state.groundSpeed;
+    const maxTOF = Math.max(tA, tB);
 
     const animate = () => {
       if (state.isPlaying) {
         setState((prev) => {
           const nextTime = prev.time + (0.01 * prev.timeMultiplier);
-          if (nextTime >= timeOfFlight) {
-            return { ...prev, time: timeOfFlight, isPlaying: false };
+          if (nextTime >= maxTOF) {
+            return { ...prev, time: maxTOF, isPlaying: false };
           }
           return { ...prev, time: nextTime };
         });
@@ -67,7 +71,7 @@ const CoriolisExplorer: React.FC = () => {
     };
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [state.isPlaying, state.timeMultiplier, state.startLat, state.startLon, state.endLat, state.endLon, state.groundSpeed]);
+  }, [state.isPlaying, state.timeMultiplier, state.startLat, state.startLon, state.endLat, state.endLon, state.groundSpeed, state.targetingMode]);
 
   const handleTogglePlay = () => setState(s => ({ ...s, isPlaying: !s.isPlaying }));
   const handleReset = () => setState(s => ({ ...s, time: 0, isPlaying: false }));
