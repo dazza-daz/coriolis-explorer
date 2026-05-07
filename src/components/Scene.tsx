@@ -102,7 +102,7 @@ const VelocityArrow = ({ position, velocity, color, label, useRealUnits }: { pos
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, dragCoefficient, targetingMode, autoStop } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, dragCoefficient, targetingMode, autoStop, trajectoryType, maxAltitude } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
@@ -118,18 +118,22 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   const currentTA = autoStop ? Math.min(time, tA) : time;
   const currentTB = autoStop ? Math.min(time, tB) : time;
 
-  // Path A - Integrated with Drag
-  const pointsA_Space = useMemo(() => {
-    return getDampedInertialPath(startPos, orbitalAxis, angularSpeed, dragCoefficient, currentTA);
-  }, [startPos, orbitalAxis, angularSpeed, dragCoefficient, currentTA]);
+  const effectiveDragA = trajectoryType === 'BALLISTIC' ? 0 : dragCoefficient;
 
-  // Path A Ground Track
+  // Path A - Integrated with Drag and Trajectory Type
+  const pointsA_Space = useMemo(() => {
+    return getDampedInertialPath(startPos, orbitalAxis, angularSpeed, effectiveDragA, currentTA, trajectoryType, tA, maxAltitude);
+  }, [startPos, orbitalAxis, angularSpeed, effectiveDragA, currentTA, trajectoryType, tA, maxAltitude]);
+
+  // Path A Ground Track (ALWAYS on the surface for Coriolis visualization)
   const pointsA_Ground = useMemo(() => {
-    return pointsA_Space.map((pos, i) => {
+    // Generate surface projection for the ground track
+    const surfacePoints = getDampedInertialPath(startPos, orbitalAxis, angularSpeed, effectiveDragA, currentTA, 'ORBITAL', tA, maxAltitude);
+    return surfacePoints.map((pos, i) => {
       const t = i * 0.05;
       return pos.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -t * EARTH_ROTATION_SPEED);
     });
-  }, [pointsA_Space]);
+  }, [startPos, orbitalAxis, angularSpeed, effectiveDragA, currentTA, tA, maxAltitude]);
 
   // Path B Ground Track - Extended Great Circle
   const pointsB_Ground = useMemo(() => {
@@ -138,10 +142,7 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
     // For B, we calculate the Great Circle axis once
     const axisB = new THREE.Vector3().crossVectors(startPos, endPos).normalize();
     if (axisB.length() < 0.001) axisB.set(0, 1, 0);
-    const totalAngle = startPos.angleTo(endPos);
-
-    // Duration is angle / speed. We want current pos at time t.
-    // alpha = (t * speed) / totalAngle
+    
     for (let t = 0; t <= currentTB; t += step) {
        const p = startPos.clone().applyAxisAngle(axisB, t * groundSpeed);
        pts.push(p);
@@ -175,7 +176,9 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   const velA_Ground_InertialFrame = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   
   const earthFrameRotationAdjustment = -time * EARTH_ROTATION_SPEED;
-  const currentPosA_Ground = currentPosA_Inertial.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), earthFrameRotationAdjustment);
+  // Use surface projection for the ground marker
+  const currentPosA_Surface_Inertial = currentPosA_Inertial.clone().normalize().multiplyScalar(EARTH_RADIUS);
+  const currentPosA_Ground = currentPosA_Surface_Inertial.applyAxisAngle(new THREE.Vector3(0, 1, 0), earthFrameRotationAdjustment);
   const velA_Ground_EarthFrame = velA_Ground_InertialFrame.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), earthFrameRotationAdjustment);
 
   return (

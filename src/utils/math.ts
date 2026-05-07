@@ -167,6 +167,7 @@ export function getCurrentGroundSpeedA(
   const velA_Ground = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   return velA_Ground.length() / EARTH_RADIUS; // Normalized units
 }
+
 /**
  * Simulates a path in the inertial frame while being "dragged" by the rotating atmosphere.
  */
@@ -175,12 +176,15 @@ export function getDampedInertialPath(
   orbitalAxis: THREE.Vector3,
   angularSpeed: number,
   drag: number,
-  time: number
+  time: number,
+  trajectoryType: 'ORBITAL' | 'BALLISTIC' = 'ORBITAL',
+  timeOfFlight: number = 10,
+  maxAltitude: number = 0.5
 ): THREE.Vector3[] {
   const pts = [];
   const dt = 0.05;
   const currentPos = startPos.clone();
-
+  
   // Initial inertial velocity
   const v_dir = new THREE.Vector3().crossVectors(orbitalAxis, startPos).normalize();
   let velocity = v_dir.multiplyScalar(angularSpeed * EARTH_RADIUS);
@@ -188,37 +192,44 @@ export function getDampedInertialPath(
 
   pts.push(currentPos.clone());
 
-  for (let t = dt; t <= time; t += dt) {
+  for (let t = dt; t <= time + 0.001; t += dt) {
     // 1. Calculate local air velocity (at current surface position)
-    const v_air = new THREE.Vector3().crossVectors(omega, currentPos);
-
-    // 2. Drag acceleration: pulls object towards air velocity
-    // a_drag = -k * (v_obj - v_air)
+    const groundLevelPos = currentPos.clone().normalize().multiplyScalar(EARTH_RADIUS);
+    const v_air = new THREE.Vector3().crossVectors(omega, groundLevelPos);
+    
+    // 2. Drag acceleration
     const v_rel = new THREE.Vector3().subVectors(velocity, v_air);
-    const a_drag = v_rel.multiplyScalar(-drag * 2.0); // 2.0 is a tuning factor for visibility
+    const a_drag = v_rel.multiplyScalar(-drag * 2.0);
 
-    // 3. Integrate
+    // 3. Integrate horizontal velocity
     velocity.add(a_drag.multiplyScalar(dt));
+    
+    // 4. Update horizontal position on sphere
     currentPos.add(velocity.clone().multiplyScalar(dt));
-
-    // 4. Constraint: stay on surface
     currentPos.normalize().multiplyScalar(EARTH_RADIUS);
-
-    // 5. Update velocity to stay tangential to the new position
-    // (prevents drift into/away from Earth due to Euler integration)
+    
+    // Ensure velocity stays tangential to surface (horizontal integration only)
     const radial = currentPos.clone().normalize();
     const v_radial_mag = velocity.dot(radial);
     velocity.sub(radial.multiplyScalar(v_radial_mag));
 
-    pts.push(currentPos.clone());
-  }
+    // 5. Apply Vertical Profile for BALLISTIC mode
+    let finalPos = currentPos.clone();
+    if (trajectoryType === 'BALLISTIC') {
+      const peakAltitude = EARTH_RADIUS * maxAltitude; 
+      const progress = Math.min(t / timeOfFlight, 1);
+      const altitude = 4 * peakAltitude * progress * (1 - progress);
+      finalPos.multiplyScalar((EARTH_RADIUS + altitude) / EARTH_RADIUS);
+    }
 
+    pts.push(finalPos);
+  }
+  
   return pts;
 }
 
 /**
  * Calculates the required steering force (acceleration) for an aircraft to maintain
-...
  * a Great Circle path on a rotating Earth.
  */
 export function getRequiredSteeringForce(

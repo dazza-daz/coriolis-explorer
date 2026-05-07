@@ -48,6 +48,13 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
     return s.toFixed(3);
   };
 
+  // Calculate current altitude for display
+  let currentAlt = 0;
+  if (state.trajectoryType === 'BALLISTIC') {
+    const progress = Math.min(state.time / tA, 1);
+    currentAlt = 4 * (EARTH_RADIUS * state.maxAltitude) * progress * (1 - progress);
+  }
+
   return (
     <>
       <div className={`${styles.persistentBar} ${isMenuOpen ? styles.shifted : ''}`}>
@@ -99,6 +106,39 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
                 </button>
              </div>
           </div>
+
+          <div className={styles.controlGroup}>
+             <label className={styles.controlLabel}>Trajectory Type (A)</label>
+             <div className={styles.toggleGroup}>
+                <button 
+                  className={`${styles.btn} ${state.trajectoryType === 'ORBITAL' ? styles.active : ''}`}
+                  onClick={() => onUpdateParam('trajectoryType', 'ORBITAL')}
+                >
+                  Orbital
+                </button>
+                <button 
+                  className={`${styles.btn} ${state.trajectoryType === 'BALLISTIC' ? styles.active : ''}`}
+                  onClick={() => onUpdateParam('trajectoryType', 'BALLISTIC')}
+                >
+                  Ballistic
+                </button>
+             </div>
+          </div>
+
+          {state.trajectoryType === 'BALLISTIC' && (
+            <div className={styles.controlGroup}>
+              <label className={styles.controlLabel}>Peak Altitude: {(state.maxAltitude * 6371).toFixed(0)} km</label>
+              <input 
+                type="range" 
+                min="0.1" 
+                max="3" 
+                step="0.1" 
+                className={styles.rangeInput}
+                value={state.maxAltitude}
+                onChange={(e) => onUpdateParam('maxAltitude', parseFloat(e.target.value))}
+              />
+            </div>
+          )}
 
           <div className={styles.controlGroup}>
              <button 
@@ -300,6 +340,11 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
             <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>
               Aircraft B: {(tB * 100).toFixed(1)} mins (relative)
             </p>
+            {state.trajectoryType === 'BALLISTIC' && (
+              <p style={{ fontSize: '0.75rem', opacity: 1.0, color: '#ffaaaa', marginTop: '4px' }}>
+                Current Altitude: {(currentAlt * 6371 / EARTH_RADIUS).toFixed(0)} km
+              </p>
+            )}
           </div>
 
           <div className={styles.info} style={{ marginTop: '12px' }}>
@@ -320,7 +365,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
           <div className={styles.legendItem}>
             <span className={styles.colorBox} style={{ backgroundColor: 'red' }}></span>
             <div className={styles.legendText}>
-              <span>Aircraft A (Orbital)</span>
+              <span>Aircraft A ({state.trajectoryType})</span>
               <span className={styles.speedBadge}>V_G: {formatSpeed(currentSpeedA * EARTH_RADIUS)}</span>
             </div>
           </div>

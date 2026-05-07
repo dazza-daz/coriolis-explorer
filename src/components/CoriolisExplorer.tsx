@@ -8,6 +8,7 @@ import { latLonToVector3, calculateInertialTrajectory } from '../utils/math';
 
 export type ViewMode = 'INERTIAL' | 'EARTH_FIXED';
 export type TargetingMode = 'SAME_TIME' | 'SAME_SPEED';
+export type TrajectoryType = 'ORBITAL' | 'BALLISTIC';
 
 export interface SimulationState {
   isPlaying: boolean;
@@ -15,6 +16,7 @@ export interface SimulationState {
   timeMultiplier: number;
   viewMode: ViewMode;
   targetingMode: TargetingMode;
+  trajectoryType: TrajectoryType;
   startLat: number;
   startLon: number;
   endLat: number;
@@ -28,6 +30,7 @@ export interface SimulationState {
   atmosphereOn: boolean;
   dragCoefficient: number;
   autoStop: boolean;
+  maxAltitude: number;
 }
 
 const CoriolisExplorer: React.FC = () => {
@@ -37,6 +40,7 @@ const CoriolisExplorer: React.FC = () => {
     timeMultiplier: 1,
     viewMode: 'INERTIAL',
     targetingMode: 'SAME_TIME',
+    trajectoryType: 'ORBITAL',
     startLat: 90, // Starting at North Pole
     startLon: 0,
     endLat: 0, // Heading towards Equator
@@ -50,6 +54,7 @@ const CoriolisExplorer: React.FC = () => {
     atmosphereOn: true,
     dragCoefficient: 0.5,
     autoStop: true,
+    maxAltitude: 0.25, // Scale factor: 0.25 = 25% Earth Radius
   });
 
   useEffect(() => {
@@ -75,7 +80,7 @@ const CoriolisExplorer: React.FC = () => {
     };
     frameId = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(frameId);
-  }, [state.isPlaying, state.timeMultiplier, state.startLat, state.startLon, state.endLat, state.endLon, state.groundSpeed, state.targetingMode]);
+  }, [state.isPlaying, state.timeMultiplier, state.startLat, state.startLon, state.endLat, state.endLon, state.groundSpeed, state.targetingMode, state.trajectoryType]);
 
   const handleTogglePlay = () => setState(s => ({ ...s, isPlaying: !s.isPlaying }));
   const handleReset = () => setState(s => ({ ...s, time: 0, isPlaying: false }));
