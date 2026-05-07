@@ -167,9 +167,58 @@ export function getCurrentGroundSpeedA(
   const velA_Ground = new THREE.Vector3().subVectors(velA_Inertial, velA_Rot);
   return velA_Ground.length() / EARTH_RADIUS; // Normalized units
 }
+/**
+ * Simulates a path in the inertial frame while being "dragged" by the rotating atmosphere.
+ */
+export function getDampedInertialPath(
+  startPos: THREE.Vector3,
+  orbitalAxis: THREE.Vector3,
+  angularSpeed: number,
+  drag: number,
+  time: number
+): THREE.Vector3[] {
+  const pts = [];
+  const dt = 0.05;
+  const currentPos = startPos.clone();
+
+  // Initial inertial velocity
+  const v_dir = new THREE.Vector3().crossVectors(orbitalAxis, startPos).normalize();
+  let velocity = v_dir.multiplyScalar(angularSpeed * EARTH_RADIUS);
+  const omega = new THREE.Vector3(0, EARTH_ROTATION_SPEED, 0);
+
+  pts.push(currentPos.clone());
+
+  for (let t = dt; t <= time; t += dt) {
+    // 1. Calculate local air velocity (at current surface position)
+    const v_air = new THREE.Vector3().crossVectors(omega, currentPos);
+
+    // 2. Drag acceleration: pulls object towards air velocity
+    // a_drag = -k * (v_obj - v_air)
+    const v_rel = new THREE.Vector3().subVectors(velocity, v_air);
+    const a_drag = v_rel.multiplyScalar(-drag * 2.0); // 2.0 is a tuning factor for visibility
+
+    // 3. Integrate
+    velocity.add(a_drag.multiplyScalar(dt));
+    currentPos.add(velocity.clone().multiplyScalar(dt));
+
+    // 4. Constraint: stay on surface
+    currentPos.normalize().multiplyScalar(EARTH_RADIUS);
+
+    // 5. Update velocity to stay tangential to the new position
+    // (prevents drift into/away from Earth due to Euler integration)
+    const radial = currentPos.clone().normalize();
+    const v_radial_mag = velocity.dot(radial);
+    velocity.sub(radial.multiplyScalar(v_radial_mag));
+
+    pts.push(currentPos.clone());
+  }
+
+  return pts;
+}
 
 /**
  * Calculates the required steering force (acceleration) for an aircraft to maintain
+...
  * a Great Circle path on a rotating Earth.
  */
 export function getRequiredSteeringForce(

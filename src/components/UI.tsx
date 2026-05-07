@@ -162,12 +162,19 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
 
         <Section title="Environment" defaultOpen={false}>
           <div className={styles.controlGroup}>
-            <button 
-              className={`${styles.btn} ${state.atmosphereOn ? styles.active : ''}`}
-              onClick={() => onUpdateParam('atmosphereOn', !state.atmosphereOn)}
-            >
-              {state.atmosphereOn ? 'Atmosphere: ON (Coupled)' : 'Atmosphere: OFF (Vacuum)'}
-            </button>
+            <label className={styles.controlLabel}>Atmospheric Drag: {state.dragCoefficient.toFixed(2)}</label>
+            <input 
+              type="range" 
+              min="0" 
+              max="1" 
+              step="0.01" 
+              className={styles.rangeInput}
+              value={state.dragCoefficient}
+              onChange={(e) => onUpdateParam('dragCoefficient', parseFloat(e.target.value))}
+            />
+            <p style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '4px' }}>
+              0 = Vacuum, 1 = Full Atmospheric Coupling
+            </p>
           </div>
 
           <div className={styles.controlGroup}>
@@ -295,7 +302,7 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
               <strong>Earth-Fixed Frame:</strong> Aircraft A deflects (Coriolis) while B follows the Great Circle.
             </p>
             <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '8px' }}>
-              <strong>Why don't pilots feel this?</strong> Normal aircraft are "coupled" to the rotating atmosphere. Aerodynamic lift and slight banking provide the steering force (Coriolis correction) automatically. Turn <strong>Atmosphere OFF</strong> to see the massive correction thrust required to stay on track in a vacuum!
+              <strong>Atmospheric Coupling:</strong> A rotating atmosphere "drags" objects into its frame. High drag makes Aircraft A (Orbital) gradually sync with the Earth's rotation. For Aircraft B, the drag provides "Air Coupling" force, reducing the "Active Steering" required by the pilot to stay on the ground track.
             </p>
           </div>
         </Section>

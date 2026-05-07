@@ -26,6 +26,7 @@ export interface SimulationState {
   showGrid: boolean;
   useRealUnits: boolean;
   atmosphereOn: boolean;
+  dragCoefficient: number;
 }
 
 const CoriolisExplorer: React.FC = () => {
@@ -46,6 +47,7 @@ const CoriolisExplorer: React.FC = () => {
     showGrid: true,
     useRealUnits: true, // Default to km/h for better realism
     atmosphereOn: true,
+    dragCoefficient: 0.5,
   });
 
   useEffect(() => {
