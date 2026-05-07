@@ -27,6 +27,7 @@ export interface SimulationState {
   useRealUnits: boolean;
   atmosphereOn: boolean;
   dragCoefficient: number;
+  autoStop: boolean;
 }
 
 const CoriolisExplorer: React.FC = () => {
@@ -48,6 +49,7 @@ const CoriolisExplorer: React.FC = () => {
     useRealUnits: true, // Default to km/h for better realism
     atmosphereOn: true,
     dragCoefficient: 0.5,
+    autoStop: true,
   });
 
   useEffect(() => {
@@ -63,7 +65,7 @@ const CoriolisExplorer: React.FC = () => {
       if (state.isPlaying) {
         setState((prev) => {
           const nextTime = prev.time + (0.01 * prev.timeMultiplier);
-          if (nextTime >= maxTOF) {
+          if (prev.autoStop && nextTime >= maxTOF) {
             return { ...prev, time: maxTOF, isPlaying: false };
           }
           return { ...prev, time: nextTime };

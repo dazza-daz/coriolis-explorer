@@ -102,6 +102,15 @@ const UI: React.FC<UIProps> = ({ state, onTogglePlay, onReset, onRecenterView, o
 
           <div className={styles.controlGroup}>
              <button 
+                className={`${styles.btn} ${state.autoStop ? styles.active : ''}`}
+                onClick={() => onUpdateParam('autoStop', !state.autoStop)}
+              >
+                {state.autoStop ? 'Auto-Stop: ON' : 'Auto-Stop: OFF (Continuous)'}
+              </button>
+          </div>
+
+          <div className={styles.controlGroup}>
+             <button 
                 className={`${styles.btn} ${state.useRealUnits ? styles.active : ''}`}
                 onClick={() => onUpdateParam('useRealUnits', !state.useRealUnits)}
               >

@@ -102,7 +102,7 @@ const VelocityArrow = ({ position, velocity, color, label, useRealUnits }: { pos
 };
 
 const Trajectories = ({ state }: { state: SimulationState }) => {
-  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, dragCoefficient, targetingMode } = state;
+  const { startLat, startLon, endLat, endLon, groundSpeed, time, viewMode, planeOpacity, earthOpacity, showGrid, useRealUnits, dragCoefficient, targetingMode, autoStop } = state;
 
   const startPos = useMemo(() => latLonToVector3(startLat, startLon), [startLat, startLon]);
   const endPos = useMemo(() => latLonToVector3(endLat, endLon), [endLat, endLon]);
@@ -115,8 +115,8 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
   const { orbitalAxis, angularSpeed, timeOfFlight: tA } = trajectoryA;
   const tB = useMemo(() => startPos.angleTo(endPos) / groundSpeed, [startPos, endPos, groundSpeed]);
 
-  const currentTA = Math.min(time, tA);
-  const currentTB = Math.min(time, tB);
+  const currentTA = autoStop ? Math.min(time, tA) : time;
+  const currentTB = autoStop ? Math.min(time, tB) : time;
 
   // Path A - Integrated with Drag
   const pointsA_Space = useMemo(() => {
@@ -131,14 +131,22 @@ const Trajectories = ({ state }: { state: SimulationState }) => {
     });
   }, [pointsA_Space]);
 
-  // Path B Ground Track
+  // Path B Ground Track - Extended Great Circle
   const pointsB_Ground = useMemo(() => {
     const pts = [];
     const step = 0.05;
+    // For B, we calculate the Great Circle axis once
+    const axisB = new THREE.Vector3().crossVectors(startPos, endPos).normalize();
+    if (axisB.length() < 0.001) axisB.set(0, 1, 0);
+    const totalAngle = startPos.angleTo(endPos);
+
+    // Duration is angle / speed. We want current pos at time t.
+    // alpha = (t * speed) / totalAngle
     for (let t = 0; t <= currentTB; t += step) {
-      pts.push(getGroundPathPosition(startPos, endPos, t, groundSpeed));
+       const p = startPos.clone().applyAxisAngle(axisB, t * groundSpeed);
+       pts.push(p);
     }
-    pts.push(getGroundPathPosition(startPos, endPos, currentTB, groundSpeed));
+    pts.push(startPos.clone().applyAxisAngle(axisB, currentTB * groundSpeed));
     return pts;
   }, [startPos, endPos, groundSpeed, currentTB]);
 
